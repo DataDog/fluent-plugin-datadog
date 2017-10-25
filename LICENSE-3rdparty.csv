@@ -1,0 +1,5 @@
+Component,Origin,License
+plugin,github.com/brianmario/yajl-ruby,MIT
+plugin,github.com/bundler/bundler,MIT
+plugin,github.com/ruby/openssl,BSD-2-Clause
+plugin,github.com/ruby/rake,MIT
