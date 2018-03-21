@@ -134,7 +134,6 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         # Check the connectivity and write messages
         log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
 
-        retries = retries + 1
         data.each do |event|
           log.trace "Datadog plugin: about to send event=#{event}"
           client.write(event)
