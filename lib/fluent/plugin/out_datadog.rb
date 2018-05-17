@@ -13,9 +13,12 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # Register the plugin
   Fluent::Plugin.register_output('datadog', self)
   # Output settings
-  config_param :use_json,       :bool,    :default => true
-  config_param :include_tag_key,:bool,    :default => false
-  config_param :tag_key,        :string,  :default => 'tag'
+  config_param :use_json,           :bool,    :default => true
+  config_param :include_tag_key,    :bool,    :default => false
+  config_param :tag_key,            :string,  :default => 'tag'
+  config_param :dd_sourcecategory,  :string
+  config_param :dd_source,          :string
+  config_param :dd_tags,            :string
 
   # Connection settings
   config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
@@ -108,9 +111,19 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     log.trace "Datadog plugin: received chunck: #{chunk}"
     chunk.msgpack_each do |tag, record|
       next unless record.is_a? Hash
+      next if record.empty?
 
       log.trace "Datadog plugin: received record: #{record}"
 
+      if @dd_sourcecategory
+        record["ddsourcecategory"] = @dd_sourcecategory
+      end
+      if @dd_source
+        record["ddsource"] = @dd_source
+      end
+      if @dd_tags
+        record["ddtags"] = @dd_tags
+      end
       if @include_tag_key
         record[@tag_key] = tag
       end
