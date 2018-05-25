@@ -39,3 +39,6 @@ build/
 foo/
 *.iml
 .idea/
+
+fluent/
+Gemfile.lock
