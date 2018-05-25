@@ -22,7 +22,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   # Connection settings
   config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
-  config_param :use_ssl,        :bool,    :default => false
+  config_param :use_ssl,        :bool,    :default => true
   config_param :port,           :integer, :default => 10514
   config_param :ssl_port,       :integer, :default => 10516
   config_param :max_retries,    :integer, :default => -1
