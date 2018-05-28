@@ -16,9 +16,9 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :use_json,           :bool,    :default => true
   config_param :include_tag_key,    :bool,    :default => false
   config_param :tag_key,            :string,  :default => 'tag'
-  config_param :dd_sourcecategory,  :string
-  config_param :dd_source,          :string
-  config_param :dd_tags,            :string
+  config_param :dd_sourcecategory,  :string,  :default => nil
+  config_param :dd_source,          :string,  :default => nil
+  config_param :dd_tags,            :string,  :default => nil
 
   # Connection settings
   config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
