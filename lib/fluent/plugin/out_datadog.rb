@@ -84,7 +84,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
           messages = Array.new
           messages.push("fp\n")
           send_to_datadog(messages)
-          sleep(15)
+          sleep(@tcp_ping_rate)
         end
       end
     end
