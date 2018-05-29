@@ -78,12 +78,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # 'chunk' is a buffer chunk that includes multiple formatted events.
   def write(chunk)
     messages = Array.new
-    log.trace "Datadog plugin: received chunck: #{chunk}"
+
     chunk.msgpack_each do |tag, record|
       next unless record.is_a? Hash
       next if record.empty?
-
-      log.trace "Datadog plugin: received record: #{record}"
 
       if @dd_sourcecategory
         record["ddsourcecategory"] = @dd_sourcecategory
@@ -109,8 +107,6 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   def send_to_datadog(events)
     @my_mutex.synchronize do
-      log.trace "Sending nb_event=#{events.size} events to Datadog"
-
       events.each do |event|
         log.trace "Datadog plugin: about to send event=#{event}"
         retries = 0
