@@ -111,14 +111,20 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         log.trace "Datadog plugin: about to send event=#{event}"
         retries = 0
         begin
-          log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
+          log.info "New attempt to Datadog attempt=#{retries}" if retries > 1
           @client ||= new_client
           @client.write(event)
         rescue => e
+          @client.close rescue nil
+          @client = nil
+
+          if retries == 0
+            # immediately retry, in case it's just a server-side close
+            retries += 1
+            retry
+          end
+
           if retries < @max_retries || @max_retries == -1
-            # Restart a new connection
-            @client.close rescue nil
-            @client = nil
             a_couple_of_seconds = retries ** 2
             a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
             retries += 1
