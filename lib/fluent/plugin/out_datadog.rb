@@ -45,21 +45,14 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   def new_client
     if @use_ssl
-      begin
-        context    = OpenSSL::SSL::SSLContext.new
-        socket     = TCPSocket.new @host, @ssl_port
-        ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
-        ssl_client.connect
-        return ssl_client
-      rescue => e
-        log.warn "Could not open a secure connection to Datadog, error=#{e}"
-        sleep 2
-        retry
-      end
+      context    = OpenSSL::SSL::SSLContext.new
+      socket     = TCPSocket.new @host, @ssl_port
+      ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
+      ssl_client.connect
+      return ssl_client
     else
       return TCPSocket.new @host, @port
     end
-
   end
 
   def start
@@ -108,11 +101,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         messages.push "#{api_key} " + Yajl.dump(record) + "\n"
       else
         next unless record.has_key? "message"
-        messages.push "#{api_key} " + record["message"].rstrip + "\n"
+        messages.push "#{api_key} " + record["message"].strip + "\n"
       end
     end
     send_to_datadog(messages)
-
   end
 
   def send_to_datadog(events)
@@ -127,7 +119,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
           @client ||= new_client
           @client.write(event)
         rescue => e
-          if retries < @max_retries || max_retries == -1
+          if retries < @max_retries || @max_retries == -1
             # Restart a new connection
             @client.close rescue nil
             @client = nil
