@@ -26,7 +26,6 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :port,           :integer, :default => 10514
   config_param :ssl_port,       :integer, :default => 10516
   config_param :max_retries,    :integer, :default => -1
-  config_param :tcp_ping_rate,  :integer, :default => 10
 
   # API Settings
   config_param :api_key,  :string
@@ -44,58 +43,36 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     super
   end
 
-  def client
-    @_socket ||= if @use_ssl
-      context    = OpenSSL::SSL::SSLContext.new
-      socket     = TCPSocket.new @host, @ssl_port
-      ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
-      ssl_client.connect
+  def new_client
+    if @use_ssl
+      begin
+        context    = OpenSSL::SSL::SSLContext.new
+        socket     = TCPSocket.new @host, @ssl_port
+        ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
+        ssl_client.connect
+        return ssl_client
+      rescue => e
+        log.warn "Could not open a secure connection to Datadog, error=#{e}"
+        sleep 2
+        retry
+      end
     else
-      socket = TCPSocket.new @host, @port
+      return TCPSocket.new @host, @port
     end
 
-    return @_socket
-
-  end
-
-  #not used for now...
-  def init_socket(socket)
-    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true)
-
-    begin
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPINTVL, 3)
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPCNT, 3)
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPIDLE, 10)
-    rescue
-      log.info "DatadogOutput: Fallback on socket options during initialization"
-    end
-
-    return socket
   end
 
   def start
     super
     @my_mutex = Mutex.new
     @running = true
-
-    if @tcp_ping_rate > 0
-      @timer = Thread.new do
-        while @running do
-          messages = Array.new
-          messages.push("fp\n")
-          send_to_datadog(messages)
-          sleep(@tcp_ping_rate)
-        end
-      end
-    end
-
   end
 
   def shutdown
     super
     @running = false
-    if @_socket
-      @_socket.close()
+    if @client
+      @client.close
     end
   end
 
@@ -131,7 +108,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         messages.push "#{api_key} " + Yajl.dump(record) + "\n"
       else
         next unless record.has_key? "message"
-        messages.push "#{api_key} " + record["message"].rstrip() + "\n"
+        messages.push "#{api_key} " + record["message"].rstrip + "\n"
       end
     end
     send_to_datadog(messages)
@@ -147,24 +124,26 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         # Check the connectivity and write messages
         log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
 
+        @client ||= new_client
         data.each do |event|
           log.trace "Datadog plugin: about to send event=#{event}"
-          client.write(event)
+          @client.write(event)
         end
 
         # Handle some failures
-      rescue Errno::EHOSTUNREACH, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Errno::EPIPE => e
+      rescue => e
 
         if retries < @max_retries || max_retries == -1
-          @_socket = nil
+          @client.close rescue nil
+          @client = nil
           a_couple_of_seconds = retries ** 2
           a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
           retries += 1
-          log.warn "Could not push logs to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e.message}"
+          log.warn "Could not push logs to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e}"
           sleep a_couple_of_seconds
           retry
         end
-        raise ConnectionFailure, "Could not push logs to Datadog after #{retries} retries, #{e.message}"
+        raise ConnectionFailure, "Could not push logs to Datadog after #{retries} retries, #{e}"
       end
     end
   end
