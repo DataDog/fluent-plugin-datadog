@@ -115,35 +115,31 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   end
 
-  def send_to_datadog(data)
+  def send_to_datadog(events)
     @my_mutex.synchronize do
-      retries = 0
-      begin
-        log.trace "Send nb_event=#{data.size} events to Datadog"
+      log.trace "Sending nb_event=#{events.size} events to Datadog"
 
-        # Check the connectivity and write messages
-        log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
-
-        @client ||= new_client
-        data.each do |event|
-          log.trace "Datadog plugin: about to send event=#{event}"
+      events.each do |event|
+        log.trace "Datadog plugin: about to send event=#{event}"
+        retries = 0
+        begin
+          log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
+          @client ||= new_client
           @client.write(event)
+        rescue => e
+          if retries < @max_retries || max_retries == -1
+            # Restart a new connection
+            @client.close rescue nil
+            @client = nil
+            a_couple_of_seconds = retries ** 2
+            a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
+            retries += 1
+            log.warn "Could not push event to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e}"
+            sleep a_couple_of_seconds
+            retry
+          end
+          raise ConnectionFailure, "Could not push event to Datadog after #{retries} retries, #{e}"
         end
-
-        # Handle some failures
-      rescue => e
-
-        if retries < @max_retries || max_retries == -1
-          @client.close rescue nil
-          @client = nil
-          a_couple_of_seconds = retries ** 2
-          a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
-          retries += 1
-          log.warn "Could not push logs to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e}"
-          sleep a_couple_of_seconds
-          retry
-        end
-        raise ConnectionFailure, "Could not push logs to Datadog after #{retries} retries, #{e}"
       end
     end
   end
