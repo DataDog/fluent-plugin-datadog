@@ -26,6 +26,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :port,           :integer, :default => 10514
   config_param :ssl_port,       :integer, :default => 10516
   config_param :max_retries,    :integer, :default => -1
+  config_param :tcp_ping_rate,  :integer, :default => 10
 
   # API Settings
   config_param :api_key,  :string
@@ -59,6 +60,17 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     super
     @my_mutex = Mutex.new
     @running = true
+
+    if @tcp_ping_rate > 0
+      @timer = Thread.new do
+        while @running do
+          messages = Array.new
+          messages.push("fp\n")
+          send_to_datadog(messages)
+          sleep(@tcp_ping_rate)
+        end
+      end
+    end
   end
 
   def shutdown
