@@ -44,33 +44,16 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     super
   end
 
-  def client
-    @_socket ||= if @use_ssl
+  def new_client
+    if @use_ssl
       context    = OpenSSL::SSL::SSLContext.new
       socket     = TCPSocket.new @host, @ssl_port
       ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
       ssl_client.connect
+      return ssl_client
     else
-      socket = TCPSocket.new @host, @port
+      return TCPSocket.new @host, @port
     end
-
-    return @_socket
-
-  end
-
-  #not used for now...
-  def init_socket(socket)
-    socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true)
-
-    begin
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPINTVL, 3)
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPCNT, 3)
-      socket.setsockopt(Socket::SOL_TCP, Socket::TCP_KEEPIDLE, 10)
-    rescue
-      log.info "DatadogOutput: Fallback on socket options during initialization"
-    end
-
-    return socket
   end
 
   def start
@@ -88,14 +71,13 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         end
       end
     end
-
   end
 
   def shutdown
     super
     @running = false
-    if @_socket
-      @_socket.close()
+    if @client
+      @client.close
     end
   end
 
@@ -108,12 +90,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # 'chunk' is a buffer chunk that includes multiple formatted events.
   def write(chunk)
     messages = Array.new
-    log.trace "Datadog plugin: received chunck: #{chunk}"
+
     chunk.msgpack_each do |tag, record|
       next unless record.is_a? Hash
       next if record.empty?
-
-      log.trace "Datadog plugin: received record: #{record}"
 
       if @dd_sourcecategory
         record["ddsourcecategory"] = @dd_sourcecategory
@@ -131,40 +111,41 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         messages.push "#{api_key} " + Yajl.dump(record) + "\n"
       else
         next unless record.has_key? "message"
-        messages.push "#{api_key} " + record["message"].rstrip() + "\n"
+        messages.push "#{api_key} " + record["message"].strip + "\n"
       end
     end
     send_to_datadog(messages)
-
   end
 
-  def send_to_datadog(data)
+  def send_to_datadog(events)
     @my_mutex.synchronize do
-      retries = 0
-      begin
-        log.trace "Send nb_event=#{data.size} events to Datadog"
+      events.each do |event|
+        log.trace "Datadog plugin: about to send event=#{event}"
+        retries = 0
+        begin
+          log.info "New attempt to Datadog attempt=#{retries}" if retries > 1
+          @client ||= new_client
+          @client.write(event)
+        rescue => e
+          @client.close rescue nil
+          @client = nil
 
-        # Check the connectivity and write messages
-        log.info "New attempt to Datadog attempt=#{retries}" if retries > 0
+          if retries == 0
+            # immediately retry, in case it's just a server-side close
+            retries += 1
+            retry
+          end
 
-        data.each do |event|
-          log.trace "Datadog plugin: about to send event=#{event}"
-          client.write(event)
+          if retries < @max_retries || @max_retries == -1
+            a_couple_of_seconds = retries ** 2
+            a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
+            retries += 1
+            log.warn "Could not push event to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e}"
+            sleep a_couple_of_seconds
+            retry
+          end
+          raise ConnectionFailure, "Could not push event to Datadog after #{retries} retries, #{e}"
         end
-
-        # Handle some failures
-      rescue Errno::EHOSTUNREACH, Errno::ECONNREFUSED, Errno::ETIMEDOUT, Errno::EPIPE => e
-
-        if retries < @max_retries || max_retries == -1
-          @_socket = nil
-          a_couple_of_seconds = retries ** 2
-          a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
-          retries += 1
-          log.warn "Could not push logs to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e.message}"
-          sleep a_couple_of_seconds
-          retry
-        end
-        raise ConnectionFailure, "Could not push logs to Datadog after #{retries} retries, #{e.message}"
       end
     end
   end
