@@ -1,7 +1,7 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache License Version 2.0.
 # This product includes software developed at Datadog (https://www.datadoghq.com/).
-# Copyright 2017 Datadog, Inc.
+# Copyright 2018 Datadog, Inc.
 
 require 'socket'
 require 'openssl'
@@ -104,9 +104,20 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       if @dd_tags
         record["ddtags"] = @dd_tags
       end
+
       if @include_tag_key
         record[@tag_key] = tag
       end
+
+      container_tags = get_container_tags(record)
+      if not container_tags.empty?
+        if record["ddtags"].nil? || record["ddtags"].empty?
+          record["ddtags"] = container_tags
+        else
+          record["ddtags"] = record["ddtags"] + "," + container_tags
+        end
+      end
+
       if @use_json
         messages.push "#{api_key} " + Yajl.dump(record) + "\n"
       else
@@ -148,6 +159,40 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         end
       end
     end
+  end
+
+  # Collect docker and kubernetes tags for your logs using `filter_kubernetes_metadata` plugin,
+  # for more information about the attribute names, check:
+  # https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L265
+
+  def get_container_tags(record)
+    return [
+      get_kubernetes_tags(record),
+      get_docker_tags(record)
+    ].compact.join(",")
+  end
+
+  def get_kubernetes_tags(record)
+    if record.key?('kubernetes') and not record.fetch('kubernetes').nil?
+      kubernetes = record['kubernetes']
+      tags = Array.new
+      tags.push("image_name:" + kubernetes['container_image']) unless kubernetes['container_image'].nil?
+      tags.push("container_name:" + kubernetes['container_name']) unless kubernetes['container_name'].nil?
+      tags.push("kube_namespace:" + kubernetes['namespace_name']) unless kubernetes['namespace_name'].nil?
+      tags.push("pod_name:" + kubernetes['pod_name']) unless kubernetes['pod_name'].nil?
+      return tags.join(",")
+    end
+    return nil
+  end
+
+  def get_docker_tags(record)
+    if record.key?('docker') and not record.fetch('docker').nil?
+      docker = record['docker']
+      tags = Array.new
+      tags.push("container_id:" + docker['container_id']) unless docker['container_id'].nil?
+      return tags.join(",")
+    end
+    return nil
   end
 
 end
