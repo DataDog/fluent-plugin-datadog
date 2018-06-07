@@ -1,7 +1,7 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache License Version 2.0.
 # This product includes software developed at Datadog (https://www.datadoghq.com/).
-# Copyright 2017 Datadog, Inc.
+# Copyright 2018 Datadog, Inc.
 
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
@@ -9,7 +9,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-datadog"
-  spec.version       = "0.10.3"
+  spec.version       = "0.10.4"
   spec.authors       = ["Datadog Solutions Team"]
   spec.email         = ["support@datadoghq.com"]
   spec.summary       = "Datadog output plugin for Fluent event collector"
