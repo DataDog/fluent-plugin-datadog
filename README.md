@@ -81,7 +81,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 
 Tags in Datadog are critical to be able to jump from one part of the product to the other. Having the right metadata associated to your logs is therefore important to jump from the container view or any container metrics to the most related logs.
 
-If your logs contain any of the following attributes, it will automatically be added as Datadog tags on your logs:
+If your logs contain any of the following attributes, it will automatically be added as Datadog tags (with the same name as on your metrics) on your logs:
 
 * kubernetes.container_image
 * kubernetes.container_name
