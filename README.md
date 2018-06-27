@@ -19,7 +19,8 @@ If you installed the td-agent instead
 
 To match events and send them to Datadog, simply add the following code to your configuration file.
 
-TCP example
+TCP example:
+
 ```xml
 # Match events tagged with "datadog.**" and
 # send them to Datadog
@@ -33,10 +34,10 @@ TCP example
   include_tag_key true
   tag_key 'tag'
 
-  # Optional tags
-  dd_sourcecategory 'aws'
-  dd_source 'rds' 
-  dd_tags 'app:mysql,env:prod'
+  # Optional parameters
+  dd_source '<INTEGRATION_NAME>' 
+  dd_tags '<KEY1:VALU1>,<KEY2:VALUE2>'
+  dd_sourcecategory '<MY_SOURCE_CATEGORY>'
 
 </match>
 ```
@@ -78,9 +79,22 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 
 ### Docker and Kubernetes tags
 
-Whether you are using kubernetes, you can enrich your logs with docker and kubernetes tags using [fluent-plugin-kubernetes_metadata_filter](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter).
-Add the following code to your configuration file to enable the filter plugin:
-```xml
+Tags in Datadog are critical to be able to jump from one part of the product to the other. Having the right metadata associated to your logs is therefore important to jump from the container view or any container metrics to the most related logs.
+
+If your logs contain any of the following attributes, it will automatically be added as Datadog tags (with the same name as on your metrics) on your logs:
+
+* kubernetes.container_image
+* kubernetes.container_name
+* kubernetes.namespace_name
+* kubernetes.pod_name
+* docker.container_id
+
+If the Datadog Agent collect them automatically, FluentD requires a plugin for this. We recommend using [fluent-plugin-kubernetes_metadata_filter](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter) to collect Docker and Kubernetes metadata.
+
+Configuration example:
+
+```
+# Collect metadata for logs tagged with "kubernetes.**"
 <filter kubernetes.*>
   type kubernetes_metadata
 </filter>
