@@ -44,6 +44,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     super
   end
 
+  def multi_workers_ready?
+    true
+  end
+
   def new_client
     if @use_ssl
       context    = OpenSSL::SSL::SSLContext.new
