@@ -9,7 +9,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-datadog"
-  spec.version       = "0.10.4"
+  spec.version       = "0.10.5"
   spec.authors       = ["Datadog Solutions Team"]
   spec.email         = ["support@datadoghq.com"]
   spec.summary       = "Datadog output plugin for Fluent event collector"
