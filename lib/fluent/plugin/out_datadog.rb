@@ -6,9 +6,14 @@
 require 'socket'
 require 'openssl'
 require 'yajl'
+require 'fluent/plugin/output'
 
-class Fluent::DatadogOutput < Fluent::BufferedOutput
+class Fluent::Plugin::DatadogOutput < Fluent::Plugin::Output
   class ConnectionFailure < StandardError; end
+
+  helpers :timer, :compat_parameters
+
+  DEFAULT_BUFFER_TYPE = "memory"
 
   # Register the plugin
   Fluent::Plugin.register_output('datadog', self)
@@ -31,17 +36,22 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # API Settings
   config_param :api_key,  :string
 
+  config_section :buffer do
+    config_set_default :@type, DEFAULT_BUFFER_TYPE
+  end
+
   def initialize
     super
   end
 
-  # Define `log` method for v0.10.42 or earlier
-  unless method_defined?(:log)
-    define_method("log") { $log }
+  def configure(conf)
+    compat_parameters_convert(conf, :buffer)
+
+    super
   end
 
-  def configure(conf)
-    super
+  def formatted_to_msgpack_binary?
+    true
   end
 
   def multi_workers_ready?
@@ -63,26 +73,21 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   def start
     super
     @my_mutex = Mutex.new
-    @running = true
 
     if @tcp_ping_rate > 0
-      @timer = Thread.new do
-        while @running do
-          messages = Array.new
-          messages.push("fp\n")
-          send_to_datadog(messages)
-          sleep(@tcp_ping_rate)
-        end
+      timer_execute(:out_datadog_ping_timer, @tcp_ping_rate) do
+        messages = Array.new
+        messages.push("fp\n")
+        send_to_datadog(messages)
       end
     end
   end
 
   def shutdown
-    super
-    @running = false
     if @client
       @client.close
     end
+    super
   end
 
   # This method is called when an event reaches Fluentd.
