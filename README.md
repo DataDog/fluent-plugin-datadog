@@ -72,10 +72,11 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **tag_key** | Name of the tag attribute, if they are included. | "tag" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
 | **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
-| **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
 | **dd_source** | This tells Datadog what integration it is | nil |
 | **dd_sourcecategory** | Multiple value attribute. Can be used to refine the source attribtue | nil |
 | **dd_tags** | Custom tags with the following format "key1:value1, key2:value2" | nil |
+| **port** | Proxy port when logs are not directly forwarded to Datadog | 10516 |
+| **host** | Proxy endpoint when logs are not directly forwarded to Datadog | intake.logs.datadoghq.com |
 
 ### Docker and Kubernetes tags
 
