@@ -16,6 +16,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :use_json,           :bool,    :default => true
   config_param :include_tag_key,    :bool,    :default => false
   config_param :tag_key,            :string,  :default => 'tag'
+  config_param :timestamp_key       :string,  :default => '@timestamp'
   config_param :dd_sourcecategory,  :string,  :default => nil
   config_param :dd_source,          :string,  :default => nil
   config_param :dd_tags,            :string,  :default => nil
@@ -87,7 +88,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   # This method is called when an event reaches Fluentd.
   def format(tag, time, record)
-    return [tag, record].to_msgpack
+    return [tag, time, record].to_msgpack
   end
 
   # NOTE! This method is called by internal thread, not Fluentd's main thread.
@@ -95,7 +96,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   def write(chunk)
     messages = Array.new
 
-    chunk.msgpack_each do |tag, record|
+    chunk.msgpack_each do |tag, time, record|
       next unless record.is_a? Hash
       next if record.empty?
 
@@ -111,6 +112,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
       if @include_tag_key
         record[@tag_key] = tag
+      end
+      # If @timestamp_key already exists, we don't overwrite it.
+      if @timestamp_key and record[@timestamp_key].nil? and time:
+        record[@timestamp_key] = time.utc.iso8601(3)
       end
 
       container_tags = get_container_tags(record)
