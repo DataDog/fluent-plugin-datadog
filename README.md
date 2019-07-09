@@ -70,6 +70,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **use_json** | Event format, if true, the event is sent in json format. Othwerwise, in plain text. | true |
 | **include_tag_key** | Automatically include tags in the record. | false |
 | **tag_key** | Name of the tag attribute, if they are included. | "tag" |
+| **timestamp_key** | Name of the attribute which will contain timestamp of the log event. If nil, timestamp attribute is not added. | "@timestamp" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
 | **ssl_port** | Port used to send logs over a SSL encripted connection to Datadog (use 443 for the EU region) | 10516 |
 | **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
