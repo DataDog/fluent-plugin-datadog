@@ -88,7 +88,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   # This method is called when an event reaches Fluentd.
   def format(tag, time, record)
-    return [tag, time, record].to_msgpack
+    # When Fluent::EventTime is msgpack'ed it gets converted to int with seconds
+    # precision only. We explicitly convert it to floating point number, which
+    # is compatible with Time.at below.
+    return [tag, time.to_f, record].to_msgpack
   end
 
   # NOTE! This method is called by internal thread, not Fluentd's main thread.
