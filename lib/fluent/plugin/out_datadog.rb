@@ -20,6 +20,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :dd_sourcecategory,  :string,  :default => nil
   config_param :dd_source,          :string,  :default => nil
   config_param :dd_tags,            :string,  :default => nil
+  config_param :dd_attribute_tags,  :string,  :default => nil
 
   # Connection settings
   config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
@@ -121,6 +122,15 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         record[@timestamp_key] = Time.at(time).utc.iso8601(3)
       end
 
+      attribute_tags = get_attribute_tags(record, @dd_attribute_tags)
+      if not attribute_tags.empty?
+        if record["ddtags"].nil? || record["ddtags"].empty?
+          record["ddtags"] = attribute_tags
+        else
+          record["ddtags"] = record["ddtags"] + "," + attribute_tags
+        end
+      end
+
       container_tags = get_container_tags(record)
       if not container_tags.empty?
         if record["ddtags"].nil? || record["ddtags"].empty?
@@ -202,6 +212,33 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       docker = record['docker']
       tags = Array.new
       tags.push("container_id:" + docker['container_id']) unless docker['container_id'].nil?
+      return tags.join(",")
+    end
+    return nil
+  end
+
+  def get_attribute_tags(record, attribute_tags)
+    if not attribute_tags.nil? and not record.nil?
+      tags = Array.new
+      # attributes are separated by ,
+      for attribute_tag in attribute_tags.split(",")
+        # attribute split into key:attribute
+        keyattr = attribute_tag.split(":")
+        key = keyattr.at(0)
+        if keyattr.length == 2
+          attr = keyattr.at(1)
+        else
+          attr = key
+        end
+
+        # split attribute name by .
+        subrecord = record
+        attrparts = attr.split(".")
+        for index in (0...attrparts.length - 1)
+          subrecord = subrecord[attrparts[index]] unless subrecord[attrparts[index]].nil?
+        end
+        tags.push(key + ":" + subrecord[attrparts.at(attrparts.length - 1)]) unless subrecord[attrparts.at(attrparts.length - 1)].nil?
+      end
       return tags.join(",")
     end
     return nil
