@@ -35,9 +35,10 @@ TCP example:
   tag_key 'tag'
 
   # Optional parameters
-  dd_source '<INTEGRATION_NAME>' 
+  dd_source '<INTEGRATION_NAME>'
   dd_tags '<KEY1:VALU1>,<KEY2:VALUE2>'
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
+  dd_attributetags '<KEY1:ATTRIBUTE1>,<KEY2:ATTRIBUTE2.SUBATTRIBUTE>'
 
 </match>
 ```
@@ -77,6 +78,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **dd_source** | This tells Datadog what integration it is | nil |
 | **dd_sourcecategory** | Multiple value attribute. Can be used to refine the source attribtue | nil |
 | **dd_tags** | Custom tags with the following format "key1:value1, key2:value2" | nil |
+| **dd_attributetags** | Custom tags which will be set from the value of the matched attribute with the following format "key1:attribute1, key2:attribute2" | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 10514 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | intake.logs.datadoghq.com |
 
