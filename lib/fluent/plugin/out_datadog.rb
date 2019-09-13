@@ -12,21 +12,24 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   # Register the plugin
   Fluent::Plugin.register_output('datadog', self)
+
   # Output settings
   config_param :use_json,           :bool,    :default => true
   config_param :include_tag_key,    :bool,    :default => false
-  config_param :tag_key,            :string,  :default => 'tag'
+  config_param :tag_key,            :string,  :default => 'fluentd_tag'
   config_param :timestamp_key,      :string,  :default => '@timestamp'
+  config_param :service,            :string,  :default => nil
   config_param :dd_sourcecategory,  :string,  :default => nil
   config_param :dd_source,          :string,  :default => nil
   config_param :dd_tags,            :string,  :default => nil
+  config_param :dd_hostname,        :string,  :default => nil
 
   # Connection settings
   config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
   config_param :use_ssl,        :bool,    :default => true
   config_param :port,           :integer, :default => 10514
   config_param :ssl_port,       :integer, :default => 10516
-  config_param :max_retries,    :integer, :default => -1
+  config_param :max_retries,    :integer, :default => 10
   config_param :tcp_ping_rate,  :integer, :default => 10
 
   # API Settings
@@ -43,6 +46,10 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
 
   def configure(conf)
     super
+    return if @dd_hostname
+    
+    @dd_hostname = %x[hostname -f 2> /dev/null].strip
+    @dd_hostname = Socket.gethostname if @dd_hostname.empty?
   end
 
   def multi_workers_ready?
@@ -111,6 +118,12 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       end
       if @dd_tags
         record["ddtags"] = @dd_tags
+      end
+      if @service
+        record["service"] = @service
+      end
+      if @dd_hostname
+        record["hostname"] = @dd_hostname
       end
 
       if @include_tag_key

@@ -69,14 +69,16 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **api_key** | This parameter is required in order to authenticate your fluent agent. | nil |
 | **use_json** | Event format, if true, the event is sent in json format. Othwerwise, in plain text. | true |
 | **include_tag_key** | Automatically include tags in the record. | false |
-| **tag_key** | Name of the tag attribute, if they are included. | "tag" |
+| **tag_key** | Name of the tag attribute, if they are included. | "fluentd_tag" |
 | **timestamp_key** | Name of the attribute which will contain timestamp of the log event. If nil, timestamp attribute is not added. | "@timestamp" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
 | **ssl_port** | Port used to send logs over a SSL encripted connection to Datadog (use 443 for the EU region) | 10516 |
-| **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
+| **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | 10 |
 | **dd_source** | This tells Datadog what integration it is | nil |
-| **dd_sourcecategory** | Multiple value attribute. Can be used to refine the source attribtue | nil |
+| **dd_sourcecategory** | Multiple value attribute. Can be used to refine the source attribute | nil |
 | **dd_tags** | Custom tags with the following format "key1:value1, key2:value2" | nil |
+| **dd_hostname** | Used by datadog to identify tge host submitting the logs. | `hostname -f` |
+| **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 10514 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | intake.logs.datadoghq.com |
 
