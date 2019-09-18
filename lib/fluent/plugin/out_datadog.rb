@@ -16,7 +16,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # Output settings
   config_param :use_json,           :bool,    :default => true
   config_param :include_tag_key,    :bool,    :default => false
-  config_param :tag_key,            :string,  :default => 'fluentd_tag'
+  config_param :tag_key,            :string,  :default => 'tag'
   config_param :timestamp_key,      :string,  :default => '@timestamp'
   config_param :service,            :string,  :default => nil
   config_param :dd_sourcecategory,  :string,  :default => nil
@@ -29,7 +29,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :use_ssl,        :bool,    :default => true
   config_param :port,           :integer, :default => 10514
   config_param :ssl_port,       :integer, :default => 10516
-  config_param :max_retries,    :integer, :default => 10
+  config_param :max_retries,    :integer, :default => -1
   config_param :tcp_ping_rate,  :integer, :default => 10
 
   # API Settings
@@ -47,7 +47,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   def configure(conf)
     super
     return if @dd_hostname
-    
+
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
     @dd_hostname = Socket.gethostname if @dd_hostname.empty?
   end
