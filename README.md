@@ -104,3 +104,16 @@ Configuration example:
   type kubernetes_metadata
 </filter>
 ```
+
+## Build
+
+To build a new version of this plugin and push it to RubyGems:
+
+- Update the version in the .gemspec file accordingly
+- `rake build` to build the gem file
+- `rake release` to push the new gem to RubyGems
+
+Note: the latest command will fail if you don't have the appropriate credentials, one way to set them is to run the following command:
+
+`curl -u <USERNAME> https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials`, it will ask for your password.
+
