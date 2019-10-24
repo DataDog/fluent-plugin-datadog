@@ -111,19 +111,19 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       next if record.empty?
 
       if @dd_sourcecategory
-        record["ddsourcecategory"] = @dd_sourcecategory
+        record["ddsourcecategory"] ||= @dd_sourcecategory
       end
       if @dd_source
-        record["ddsource"] = @dd_source
+        record["ddsource"] ||= @dd_source
       end
       if @dd_tags
-        record["ddtags"] = @dd_tags
+        record["ddtags"] ||= @dd_tags
       end
       if @service
-        record["service"] = @service
+        record["service"] ||= @service
       end
       if @dd_hostname
-        record["hostname"] = @dd_hostname
+        record["hostname"] ||= @dd_hostname
       end
 
       if @include_tag_key
