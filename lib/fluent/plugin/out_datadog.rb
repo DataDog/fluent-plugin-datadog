@@ -123,6 +123,9 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
         record["service"] ||= @service
       end
       if @dd_hostname
+        # set the record hostname to the configured dd_hostname only
+        # if the record hostname is empty, ensuring having a hostname set
+        # even if the record doesn't contain any.
         record["hostname"] ||= @dd_hostname
       end
 
