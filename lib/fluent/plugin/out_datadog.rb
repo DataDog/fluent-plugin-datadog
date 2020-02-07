@@ -10,6 +10,11 @@ require 'yajl'
 class Fluent::DatadogOutput < Fluent::BufferedOutput
   class ConnectionFailure < StandardError; end
 
+  # Respect limit documented at https://docs.datadoghq.com/agent/logs/?tab=tailexistingfiles#send-logs-over-https
+  DD_MAX_BATCH_LENGTH = 200
+  DD_MAX_BATCH_SIZE = 1000000
+  DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
+
   # Register the plugin
   Fluent::Plugin.register_output('datadog', self)
 
@@ -25,12 +30,16 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   config_param :dd_hostname,        :string,  :default => nil
 
   # Connection settings
-  config_param :host,           :string,  :default => 'intake.logs.datadoghq.com'
-  config_param :use_ssl,        :bool,    :default => true
-  config_param :port,           :integer, :default => 10514
-  config_param :ssl_port,       :integer, :default => 10516
-  config_param :max_retries,    :integer, :default => -1
-  config_param :tcp_ping_rate,  :integer, :default => 10
+  config_param :host,              :string,  :default => 'http-intake.logs.datadoghq.com'
+  config_param :use_ssl,           :bool,    :default => true
+  config_param :port,              :integer, :default => 80
+  config_param :ssl_port,          :integer, :default => 443
+  config_param :max_retries,       :integer, :default => -1
+  config_param :tcp_ping_rate,     :integer, :default => 10
+  config_param :use_http,          :bool,    :default => true
+  config_param :use_compression,   :bool,    :default => true
+  config_param :compression_level, :integer, :default => 6
+  config_param :no_ssl_validation, :bool,    :default => false
 
   # API Settings
   config_param :api_key,  :string
