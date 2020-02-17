@@ -9,7 +9,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-datadog"
-  spec.version       = "0.11.1"
+  spec.version       = "0.12.0"
   spec.authors       = ["Datadog Solutions Team"]
   spec.email         = ["support@datadoghq.com"]
   spec.summary       = "Datadog output plugin for Fluent event collector"
@@ -21,7 +21,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_development_dependency "bundler", "~> 1.5"
+  spec.add_runtime_dependency "fluentd", [">= 1", "< 2"]
+  spec.add_runtime_dependency "net-http-persistent", '~> 2.9'
+
+  spec.add_development_dependency "test-unit", '~> 3.1'
   spec.add_development_dependency "rake"
   spec.add_development_dependency "yajl-ruby", "~> 1.2"
+
+
 end

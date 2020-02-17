@@ -6,6 +6,11 @@ if you don't wan't to.
 
 ## Pre-requirements
 
+| fluent-plugin-datadog | Fluentd    | Ruby   |
+|:--------------------------|:-----------|:-------|
+| \>= 0.12.0               | \>= v1      | \>= 2.4 |
+| < 0.12.0                   | \>= v0.12.0 | \>= 2.1 |
+
 To add the plugin to your fluentd agent, use the following command:
 
     gem install fluent-plugin-datadog
@@ -38,6 +43,14 @@ TCP example:
   dd_source '<INTEGRATION_NAME>' 
   dd_tags '<KEY1:VALU1>,<KEY2:VALUE2>'
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
+  <buffer>
+          @type memory
+          flush_thread_count 4
+          flush_interval 3s
+          chunk_limit_size 1m
+          chunk_limit_records 200
+  </buffer>
+
 
 </match>
 ```
@@ -72,8 +85,13 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **tag_key** | Where to store the Fluentd tag. | "tag" |
 | **timestamp_key** | Name of the attribute which will contain timestamp of the log event. If nil, timestamp attribute is not added. | "@timestamp" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
-| **ssl_port** | Port used to send logs over a SSL encripted connection to Datadog (use 443 for the EU region) | 10516 |
+| **no_ssl_validation** | Disable SSL validation (useful for proxy forwarding) | false |
+| **ssl_port** | Port used to send logs over a SSL encrypted connection to Datadog (use 443 for the EU region) | 10516 |
 | **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
+| **max_backoff** | The maximum time waited between each retry in seconds | 30 |
+| **use_http** | Enable HTTP forwarding | true |
+| **use_compression** | Enable log compression for HTTP | true |
+| **compression_level** | Set the log compression level for HTTP (1 to 9, 9 being the best ratio) | 6 |
 | **dd_source** | This tells Datadog what integration it is | nil |
 | **dd_sourcecategory** | Multiple value attribute. Can be used to refine the source attribute | nil |
 | **dd_tags** | Custom tags with the following format "key1:value1, key2:value2" | nil |

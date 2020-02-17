@@ -3,60 +3,67 @@
 # This product includes software developed at Datadog (https://www.datadoghq.com/).
 # Copyright 2018 Datadog, Inc.
 
-require 'socket'
-require 'openssl'
-require 'yajl'
+require "socket"
+require "openssl"
+require "yajl"
+require "zlib"
+require "fluent/plugin/output"
 
-class Fluent::DatadogOutput < Fluent::BufferedOutput
-  class ConnectionFailure < StandardError; end
+class Fluent::DatadogOutput < Fluent::Plugin::Output
+  class RetryableError < StandardError;
+  end
 
-  # Respect limit documented at https://docs.datadoghq.com/agent/logs/?tab=tailexistingfiles#send-logs-over-https
+  # Max limits for transport regardless of Fluentd buffer
   DD_MAX_BATCH_LENGTH = 200
   DD_MAX_BATCH_SIZE = 1000000
   DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
+
+  helpers :compat_parameters
+
+  DEFAULT_BUFFER_TYPE = "memory"
 
   # Register the plugin
   Fluent::Plugin.register_output('datadog', self)
 
   # Output settings
-  config_param :use_json,           :bool,    :default => true
-  config_param :include_tag_key,    :bool,    :default => false
-  config_param :tag_key,            :string,  :default => 'tag'
-  config_param :timestamp_key,      :string,  :default => '@timestamp'
-  config_param :service,            :string,  :default => nil
-  config_param :dd_sourcecategory,  :string,  :default => nil
-  config_param :dd_source,          :string,  :default => nil
-  config_param :dd_tags,            :string,  :default => nil
-  config_param :dd_hostname,        :string,  :default => nil
+  config_param :include_tag_key, :bool, :default => false
+  config_param :tag_key, :string, :default => 'tag'
+  config_param :timestamp_key, :string, :default => '@timestamp'
+  config_param :service, :string, :default => nil
+  config_param :dd_sourcecategory, :string, :default => nil
+  config_param :dd_source, :string, :default => nil
+  config_param :dd_tags, :string, :default => nil
+  config_param :dd_hostname, :string, :default => nil
 
   # Connection settings
-  config_param :host,              :string,  :default => 'http-intake.logs.datadoghq.com'
-  config_param :use_ssl,           :bool,    :default => true
-  config_param :port,              :integer, :default => 80
-  config_param :ssl_port,          :integer, :default => 443
-  config_param :max_retries,       :integer, :default => -1
-  config_param :tcp_ping_rate,     :integer, :default => 10
-  config_param :use_http,          :bool,    :default => true
-  config_param :use_compression,   :bool,    :default => true
+  config_param :host, :string, :default => 'http-intake.logs.datadoghq.com'
+  config_param :use_ssl, :bool, :default => true
+  config_param :port, :integer, :default => 80
+  config_param :ssl_port, :integer, :default => 443
+  config_param :max_retries, :integer, :default => -1
+  config_param :max_backoff, :integer, :default => 30
+  config_param :use_http, :bool, :default => true
+  config_param :use_compression, :bool, :default => true
   config_param :compression_level, :integer, :default => 6
-  config_param :no_ssl_validation, :bool,    :default => false
+  config_param :no_ssl_validation, :bool, :default => false
 
   # API Settings
-  config_param :api_key,  :string
+  config_param :api_key, :string
+
+  config_section :buffer do
+    config_set_default :@type, DEFAULT_BUFFER_TYPE
+  end
 
   def initialize
     super
   end
 
-  # Define `log` method for v0.10.42 or earlier
-  unless method_defined?(:log)
-    define_method("log") { $log }
-  end
-
   def configure(conf)
+    compat_parameters_convert(conf, :buffer)
     super
     return if @dd_hostname
 
+    # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
     @dd_hostname = Socket.gethostname if @dd_hostname.empty?
   end
@@ -65,41 +72,22 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     true
   end
 
-  def new_client
-    if @use_ssl
-      context    = OpenSSL::SSL::SSLContext.new
-      socket     = TCPSocket.new @host, @ssl_port
-      ssl_client = OpenSSL::SSL::SSLSocket.new socket, context
-      ssl_client.connect
-      return ssl_client
-    else
-      return TCPSocket.new @host, @port
-    end
+  def formatted_to_msgpack_binary?
+    true
   end
 
   def start
     super
-    @my_mutex = Mutex.new
-    @running = true
-
-    if @tcp_ping_rate > 0
-      @timer = Thread.new do
-        while @running do
-          messages = Array.new
-          messages.push("fp\n")
-          send_to_datadog(messages)
-          sleep(@tcp_ping_rate)
-        end
-      end
-    end
+    @client = new_client(log, @api_key, @use_http, @use_ssl, @no_ssl_validation, @host, @ssl_port, @port, @use_compression)
   end
 
   def shutdown
     super
-    @running = false
-    if @client
-      @client.close
-    end
+  end
+
+  def terminate
+    super
+    @client.close if @client
   end
 
   # This method is called when an event reaches Fluentd.
@@ -107,94 +95,269 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
     # When Fluent::EventTime is msgpack'ed it gets converted to int with seconds
     # precision only. We explicitly convert it to floating point number, which
     # is compatible with Time.at below.
-    return [tag, time.to_f, record].to_msgpack
+    record = enrich_record(tag, time.to_f, record)
+    if @use_http
+      record = Yajl.dump(record)
+    else
+      if @use_json
+        record = "#{api_key} #{Yajl.dump(record)}"
+      else
+        record = "#{api_key} #{record}"
+      end
+    end
+    [tag, time.to_f, record].to_msgpack
   end
+
 
   # NOTE! This method is called by internal thread, not Fluentd's main thread.
   # 'chunk' is a buffer chunk that includes multiple formatted events.
   def write(chunk)
-    messages = Array.new
-
-    chunk.msgpack_each do |tag, time, record|
-      next unless record.is_a? Hash
-      next if record.empty?
-
-      if @dd_sourcecategory
-        record["ddsourcecategory"] ||= @dd_sourcecategory
+    if @use_http
+      events = Array.new
+      chunk.msgpack_each do |_, _, record|
+        next if record.empty?
+        events.push record
       end
-      if @dd_source
-        record["ddsource"] ||= @dd_source
-      end
-      if @dd_tags
-        record["ddtags"] ||= @dd_tags
-      end
-      if @service
-        record["service"] ||= @service
-      end
-      if @dd_hostname
-        # set the record hostname to the configured dd_hostname only
-        # if the record hostname is empty, ensuring having a hostname set
-        # even if the record doesn't contain any.
-        record["hostname"] ||= @dd_hostname
-      end
-
-      if @include_tag_key
-        record[@tag_key] = tag
-      end
-      # If @timestamp_key already exists, we don't overwrite it.
-      if @timestamp_key and record[@timestamp_key].nil? and time
-        record[@timestamp_key] = Time.at(time).utc.iso8601(3)
-      end
-
-      container_tags = get_container_tags(record)
-      if not container_tags.empty?
-        if record["ddtags"].nil? || record["ddtags"].empty?
-          record["ddtags"] = container_tags
-        else
-          record["ddtags"] = record["ddtags"] + "," + container_tags
-        end
-      end
-
-      if @use_json
-        messages.push "#{api_key} " + Yajl.dump(record) + "\n"
-      else
-        next unless record.has_key? "message"
-        messages.push "#{api_key} " + record["message"].strip + "\n"
+      process_http_events(events, @use_compression, @compression_level, @max_retries, @max_backoff, DD_MAX_BATCH_LENGTH, DD_MAX_BATCH_SIZE)
+    else
+      chunk.msgpack_each do |_, _, record|
+        next if record.empty?
+        process_tcp_event(event, @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
       end
     end
-    send_to_datadog(messages)
   end
 
-  def send_to_datadog(events)
-    @my_mutex.synchronize do
-      events.each do |event|
-        log.trace "Datadog plugin: about to send event=#{event}"
-        retries = 0
-        begin
-          log.info "New attempt to Datadog attempt=#{retries}" if retries > 1
-          @client ||= new_client
-          @client.write(event)
-        rescue => e
-          @client.close rescue nil
-          @client = nil
+  # Process and send a set of http events. Potentially break down this set of http events in smaller batches
+  def process_http_events(events, use_compression, compression_level, max_retries, max_backoff, max_batch_length, max_batch_size)
+    batches = batch_http_events(events, max_batch_length, max_batch_size)
+    batches.each do |batched_event|
+      formatted_events = format_http_event_batch(batched_event)
+      if use_compression
+        formatted_events = gzip_compress(formatted_events, compression_level)
+      end
+      @client.send_retries(formatted_events, max_retries, max_backoff)
+    end
+  end
 
-          if retries == 0
-            # immediately retry, in case it's just a server-side close
-            retries += 1
-            retry
-          end
+  # Process and send a single tcp event
+  def process_tcp_event(event, max_retries, max_backoff, max_batch_size)
+    if (record.bytesize > max_batch_size)
+      event = truncate(event, max_batch_size)
+    end
+    @client.send_retries(event, max_retries, max_backoff)
+  end
 
-          if retries < @max_retries || @max_retries == -1
-            a_couple_of_seconds = retries ** 2
-            a_couple_of_seconds = 30 unless a_couple_of_seconds < 30
-            retries += 1
-            log.warn "Could not push event to Datadog, attempt=#{retries} max_attempts=#{max_retries} wait=#{a_couple_of_seconds}s error=#{e}"
-            sleep a_couple_of_seconds
-            retry
-          end
-          raise ConnectionFailure, "Could not push event to Datadog after #{retries} retries, #{e}"
+  # Group HTTP events in batches
+  def batch_http_events(encoded_events, max_batch_length, max_request_size)
+    batches = []
+    current_batch = []
+    current_batch_size = 0
+    encoded_events.each_with_index do |encoded_event, i|
+      current_event_size = encoded_event.bytesize
+      # If this unique log size is bigger than the request size, truncate it
+      if current_event_size > max_request_size
+        encoded_event = truncate(encoded_event, max_request_size)
+        current_event_size = encoded_event.bytesize
+      end
+
+      if (i > 0 and i % max_batch_length == 0) or (current_batch_size + current_event_size > max_request_size)
+        batches << current_batch
+        current_batch = []
+        current_batch_size = 0
+      end
+
+      current_batch_size += encoded_event.bytesize
+      current_batch << encoded_event
+    end
+    batches << current_batch
+    batches
+  end
+
+  # Truncate events over the provided max length, appending a marker when truncated
+  def truncate(event, max_length)
+    if event.length > max_length
+      event = event[0..max_length - 1]
+      event[max(0, max_length - DD_TRUNCATION_SUFFIX.length)..max_length - 1] = DD_TRUNCATION_SUFFIX
+      return event
+    end
+    event
+  end
+
+  def max(a, b)
+    a > b ? a : b
+  end
+
+  # Format batch of http events
+  def format_http_event_batch(events)
+    "[#{events.join(',')}]"
+  end
+
+  # Enrich records with metadata such as service, tags or source
+  def enrich_record(tag, time, record)
+    if @dd_sourcecategory
+      record["ddsourcecategory"] ||= @dd_sourcecategory
+    end
+    if @dd_source
+      record["ddsource"] ||= @dd_source
+    end
+    if @dd_tags
+      record["ddtags"] ||= @dd_tags
+    end
+    if @service
+      record["service"] ||= @service
+    end
+    if @dd_hostname
+      # set the record hostname to the configured dd_hostname only
+      # if the record hostname is empty, ensuring having a hostname set
+      # even if the record doesn't contain any.
+      record["hostname"] ||= @dd_hostname
+    end
+
+    if @include_tag_key
+      record[@tag_key] = tag
+    end
+    # If @timestamp_key already exists, we don't overwrite it.
+    if @timestamp_key and record[@timestamp_key].nil? and time
+      record[@timestamp_key] = Time.at(time).utc.iso8601(3)
+    end
+
+    container_tags = get_container_tags(record)
+    unless container_tags.empty?
+      if record["ddtags"].nil? || record["ddtags"].empty?
+        record["ddtags"] = container_tags
+      else
+        record["ddtags"] = record["ddtags"] + "," + container_tags
+      end
+    end
+    record
+  end
+
+  # Compress logs with GZIP
+  def gzip_compress(payload, compression_level)
+    gz = StringIO.new
+    gz.set_encoding("BINARY")
+    z = Zlib::GzipWriter.new(gz, compression_level)
+    begin
+      z.write(payload)
+    ensure
+      z.close
+    end
+    gz.string
+  end
+
+  # Build a new transport client
+  def new_client(logger, api_key, use_http, use_ssl, no_ssl_validation, host, ssl_port, port, use_compression)
+    if use_http
+      DatadogHTTPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port, use_compression, api_key
+    else
+      DatadogTCPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port
+    end
+  end
+
+  # Top level class for datadog transport clients, managing retries and backoff
+  class DatadogClient
+    def send_retries(payload, max_retries, max_backoff)
+      backoff = 1
+      retries = 0
+      begin
+        send(payload)
+      rescue RetryableError => e
+        if retries < max_retries || max_retries < 0
+          @logger.warn("Retrying ", :exception => e, :backtrace => e.backtrace)
+          sleep backoff
+          backoff = 2 * backoff unless backoff > max_backoff
+          retries += 1
+          retry
         end
       end
+    end
+
+    def send(payload)
+    end
+
+    def close
+    end
+  end
+
+  # HTTP datadog client
+  class DatadogHTTPClient < DatadogClient
+    require 'net/http'
+    require 'net/http/persistent'
+
+    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, use_compression, api_key)
+      @logger = logger
+      protocol = use_ssl ? "https" : "http"
+      port = use_ssl ? ssl_port : port
+      @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
+      logger.info("Starting HTTP connection to #{protocol}://#{host}:#{port.to_s} with compression " + (use_compression ? "enabled" : "disabled"))
+      @client = Net::HTTP::Persistent.new("fluent-plugin-datadog-logcollector")
+      @client.verify_mode = OpenSSL::SSL::VERIFY_NONE if no_ssl_validation
+      @client.override_headers["Content-Type"] = "application/json"
+      if use_compression
+        @client.override_headers["Content-Encoding"] = "gzip"
+      end
+    end
+
+    def send(payload)
+      request = Net::HTTP::Post.new @uri.request_uri
+      request.body = payload
+      response = @client.request @uri, request
+      res_code = response.code.to_i
+      if res_code >= 500
+        raise RetryableError.new "Unable to send payload: #{res_code} #{response.message}"
+      end
+      if res_code >= 400
+        @logger.error("Unable to send payload due to client error: #{res_code} #{response.message}")
+      end
+    end
+
+    def close
+      @client.shutdown
+    end
+  end
+
+  # TCP Datadog client
+  class DatadogTCPClient < DatadogClient
+    require "socket"
+
+    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port)
+      @logger = logger
+      @use_ssl = use_ssl
+      @no_ssl_validation = no_ssl_validation
+      @host = host
+      @port = port
+    end
+
+    def connect
+      if @use_ssl
+        @logger.info("Starting SSL connection #{@host} #{@port}")
+        socket = TCPSocket.new @host, @port
+        ssl_context = OpenSSL::SSL::SSLContext.new
+        if @no_ssl_validation
+          ssl_context.set_params({:verify_mode => OpenSSL::SSL::VERIFY_NONE})
+        end
+        ssl_context = OpenSSL::SSL::SSLSocket.new socket, ssl_context
+        ssl_context.connect
+        ssl_context
+      else
+        @logger.info("Starting plaintext connection #{@host} #{@port}")
+        TCPSocket.new @host, @port
+      end
+    end
+
+    def send(payload)
+      begin
+        @socket ||= connect
+        @socket.puts(payload)
+      rescue => e
+        @socket.close rescue nil
+        @socket = nil
+        raise RetryableError.new "Unable to send payload: #{e.message}."
+      end
+    end
+
+    def close
+      @socket.close rescue nil
     end
   end
 
@@ -203,9 +366,9 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
   # https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L265
 
   def get_container_tags(record)
-    return [
-      get_kubernetes_tags(record),
-      get_docker_tags(record)
+    [
+        get_kubernetes_tags(record),
+        get_docker_tags(record)
     ].compact.join(",")
   end
 
@@ -219,7 +382,7 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       tags.push("pod_name:" + kubernetes['pod_name']) unless kubernetes['pod_name'].nil?
       return tags.join(",")
     end
-    return nil
+    nil
   end
 
   def get_docker_tags(record)
@@ -229,7 +392,6 @@ class Fluent::DatadogOutput < Fluent::BufferedOutput
       tags.push("container_id:" + docker['container_id']) unless docker['container_id'].nil?
       return tags.join(",")
     end
-    return nil
+    nil
   end
-
 end
