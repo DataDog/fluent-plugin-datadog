@@ -13,9 +13,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   class RetryableError < StandardError;
   end
 
-  # Max limits for transport regardless of Fluentd buffer
-  DD_MAX_BATCH_LENGTH = 200
-  DD_MAX_BATCH_SIZE = 1000000
+  # Max limits for transport regardless of Fluentd buffer, respecting https://docs.datadoghq.com/api/?lang=bash#logs
+  DD_MAX_BATCH_LENGTH = 500
+  DD_MAX_BATCH_SIZE = 5000000
   DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
 
   helpers :compat_parameters
