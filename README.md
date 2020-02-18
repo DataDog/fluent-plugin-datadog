@@ -47,8 +47,8 @@ TCP example:
           @type memory
           flush_thread_count 4
           flush_interval 3s
-          chunk_limit_size 1m
-          chunk_limit_records 200
+          chunk_limit_size 5m
+          chunk_limit_records 500
   </buffer>
 
 
