@@ -105,7 +105,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
         record = "#{api_key} #{record}"
       end
     end
-    [tag, time.to_f, record].to_msgpack
+    [record].to_msgpack
   end
 
 
@@ -114,13 +114,13 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   def write(chunk)
     if @use_http
       events = Array.new
-      chunk.msgpack_each do |_, _, record|
+      chunk.msgpack_each do |record|
         next if record.empty?
         events.push record
       end
       process_http_events(events, @use_compression, @compression_level, @max_retries, @max_backoff, DD_MAX_BATCH_LENGTH, DD_MAX_BATCH_SIZE)
     else
-      chunk.msgpack_each do |_, _, record|
+      chunk.msgpack_each do |record|
         next if record.empty?
         process_tcp_event(event, @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
       end
@@ -273,9 +273,11 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     end
 
     def send(payload)
+      raise NotImplementedError, "Datadog transport client should implement the send method"
     end
 
     def close
+      raise NotImplementedError, "Datadog transport client should implement the close method"
     end
   end
 
