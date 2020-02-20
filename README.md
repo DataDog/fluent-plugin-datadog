@@ -86,7 +86,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **timestamp_key** | Name of the attribute which will contain timestamp of the log event. If nil, timestamp attribute is not added. | "@timestamp" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
 | **no_ssl_validation** | Disable SSL validation (useful for proxy forwarding) | false |
-| **ssl_port** | Port used to send logs over a SSL encrypted connection to Datadog (use 443 for the EU region) | 10516 |
+| **ssl_port** | Port used to send logs through TCP over a SSL encrypted connection to Datadog (use 443 for the EU region) | 10516 |
 | **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
 | **max_backoff** | The maximum time waited between each retry in seconds | 30 |
 | **use_http** | Enable HTTP forwarding | true |
