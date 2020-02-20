@@ -86,10 +86,10 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **timestamp_key** | Name of the attribute which will contain timestamp of the log event. If nil, timestamp attribute is not added. | "@timestamp" |
 | **use_ssl** | If true, the agent initializes a secure connection to Datadog. In clear TCP otherwise. | true |
 | **no_ssl_validation** | Disable SSL validation (useful for proxy forwarding) | false |
-| **ssl_port** | Port used to send logs through TCP over a SSL encrypted connection to Datadog (use 443 for the EU region) | 10516 |
+| **ssl_port** | Port used to send logs over a SSL encrypted connection to Datadog. If use_http is disabled, use 10516 for the US region and 443 for the EU region. | 443 |
 | **max_retries** | The number of retries before the output plugin stops. Set to -1 for unlimited retries | -1 |
 | **max_backoff** | The maximum time waited between each retry in seconds | 30 |
-| **use_http** | Enable HTTP forwarding | true |
+| **use_http** | Enable HTTP forwarding. If you disable it, make sure to change the port to 10514 or ssl_port to 10516 | true |
 | **use_compression** | Enable log compression for HTTP | true |
 | **compression_level** | Set the log compression level for HTTP (1 to 9, 9 being the best ratio) | 6 |
 | **dd_source** | This tells Datadog what integration it is | nil |
@@ -97,7 +97,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **dd_tags** | Custom tags with the following format "key1:value1, key2:value2" | nil |
 | **dd_hostname** | Used by Datadog to identify the host submitting the logs. | `hostname -f` |
 | **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
-| **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 10514 |
+| **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | intake.logs.datadoghq.com |
 
 ### Docker and Kubernetes tags

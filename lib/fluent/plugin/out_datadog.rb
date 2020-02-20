@@ -18,6 +18,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   DD_MAX_BATCH_SIZE = 5000000
   DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
 
+  DD_DEFAULT_HTTP_ENDPOINT = "http-intake.logs.datadoghq.com"
+  DD_DEFAULT_TCP_ENDPOINT = "intake.logs.datadoghq.com"
+
   helpers :compat_parameters
 
   DEFAULT_BUFFER_TYPE = "memory"
@@ -36,7 +39,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :dd_hostname, :string, :default => nil
 
   # Connection settings
-  config_param :host, :string, :default => 'http-intake.logs.datadoghq.com'
+  config_param :host, :string, :default => DD_DEFAULT_HTTP_ENDPOINT
   config_param :use_ssl, :bool, :default => true
   config_param :port, :integer, :default => 80
   config_param :ssl_port, :integer, :default => 443
@@ -46,6 +49,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :use_compression, :bool, :default => true
   config_param :compression_level, :integer, :default => 6
   config_param :no_ssl_validation, :bool, :default => false
+
+  # Format settings
+  config_param :use_json, :bool, :default => true
 
   # API Settings
   config_param :api_key, :string
@@ -62,6 +68,10 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     compat_parameters_convert(conf, :buffer)
     super
     return if @dd_hostname
+
+    if not @use_http and @host == DD_DEFAULT_HTTP_ENDPOINT
+      @host = DD_DEFAULT_TCP_ENDPOINT
+    end
 
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
@@ -116,13 +126,13 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       events = Array.new
       chunk.msgpack_each do |record|
         next if record.empty?
-        events.push record
+        events.push record[0]
       end
       process_http_events(events, @use_compression, @compression_level, @max_retries, @max_backoff, DD_MAX_BATCH_LENGTH, DD_MAX_BATCH_SIZE)
     else
       chunk.msgpack_each do |record|
         next if record.empty?
-        process_tcp_event(event, @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
+        process_tcp_event(record[0], @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
       end
     end
   end
@@ -141,7 +151,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   # Process and send a single tcp event
   def process_tcp_event(event, max_retries, max_backoff, max_batch_size)
-    if (record.bytesize > max_batch_size)
+    if event.bytesize > max_batch_size
       event = truncate(event, max_batch_size)
     end
     @client.send_retries(event, max_retries, max_backoff)
@@ -327,7 +337,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       @use_ssl = use_ssl
       @no_ssl_validation = no_ssl_validation
       @host = host
-      @port = port
+      @port = use_ssl ? ssl_port : port
     end
 
     def connect
