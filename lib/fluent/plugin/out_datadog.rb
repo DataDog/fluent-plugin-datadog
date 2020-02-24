@@ -54,7 +54,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :use_json, :bool, :default => true
 
   # API Settings
-  config_param :api_key, :string
+  config_param :api_key, :string, secret: true
 
   config_section :buffer do
     config_set_default :@type, DEFAULT_BUFFER_TYPE
