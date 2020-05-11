@@ -2,8 +2,9 @@ require "fluent/test"
 require "fluent/test/helpers"
 require "fluent/test/driver/output"
 require "fluent/plugin/out_datadog"
+require 'webmock/test_unit'
 
-class FileOutputTest < Test::Unit::TestCase
+class FluentDatadogTest < Test::Unit::TestCase
   include Fluent::Test::Helpers
 
   def setup
@@ -162,5 +163,51 @@ class FileOutputTest < Test::Unit::TestCase
       assert_equal "...TRUNCATED...", actual[1][0]
       assert_equal "dd2", actual[2][0]
     end
+  end
+
+  sub_test_case "http connection errors" do
+    test "should retry when server is returning 5XX" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 500)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, false, api_key
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send(payload)
+      end
+    end
+
+    test "should not retry when server is returning 4XX" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 400)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, false, api_key
+      assert_nothing_raised do
+        client.send(payload)
+      end
+    end
+  end
+
+  def stub_dd_request_with_return_code(api_key, return_code)
+    stub_dd_request(api_key).
+        to_return(status: return_code, body: "", headers: {})
+  end
+
+  def stub_dd_request_with_error(api_key, error)
+    stub_dd_request(api_key).
+        to_raise(error)
+  end
+
+  def stub_dd_request(api_key)
+    stub_request(:post, "http://datadog.com/v1/input/#{api_key}").
+        with(
+            body: "{}",
+            headers: {
+                'Accept' => '*/*',
+                'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+                'Connection' => 'keep-alive',
+                'Content-Type' => 'application/json',
+                'Keep-Alive' => '30',
+                'User-Agent' => 'Ruby'
+            })
   end
 end

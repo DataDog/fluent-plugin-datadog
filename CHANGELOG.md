@@ -1,3 +1,6 @@
+## 0.12.1
+ - Address persistent connection creation issues 
+
 ## 0.12.0
  - Migrate to Fluentd v1 APIs
  - Enable HTTP forwarding by default

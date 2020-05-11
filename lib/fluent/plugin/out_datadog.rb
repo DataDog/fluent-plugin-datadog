@@ -122,18 +122,22 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   # NOTE! This method is called by internal thread, not Fluentd's main thread.
   # 'chunk' is a buffer chunk that includes multiple formatted events.
   def write(chunk)
-    if @use_http
-      events = Array.new
-      chunk.msgpack_each do |record|
-        next if record.empty?
-        events.push record[0]
+    begin
+      if @use_http
+        events = Array.new
+        chunk.msgpack_each do |record|
+          next if record.empty?
+          events.push record[0]
+        end
+        process_http_events(events, @use_compression, @compression_level, @max_retries, @max_backoff, DD_MAX_BATCH_LENGTH, DD_MAX_BATCH_SIZE)
+      else
+        chunk.msgpack_each do |record|
+          next if record.empty?
+          process_tcp_event(record[0], @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
+        end
       end
-      process_http_events(events, @use_compression, @compression_level, @max_retries, @max_backoff, DD_MAX_BATCH_LENGTH, DD_MAX_BATCH_SIZE)
-    else
-      chunk.msgpack_each do |record|
-        next if record.empty?
-        process_tcp_event(record[0], @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
-      end
+    rescue Exception => e
+      @logger.error("Uncaught processing exception in datadog forwarder #{e.message}")
     end
   end
 
@@ -302,7 +306,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       port = use_ssl ? ssl_port : port
       @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
       logger.info("Starting HTTP connection to #{protocol}://#{host}:#{port.to_s} with compression " + (use_compression ? "enabled" : "disabled"))
-      @client = Net::HTTP::Persistent.new("fluent-plugin-datadog-logcollector")
+      @client = Net::HTTP::Persistent.new name: "fluent-plugin-datadog-logcollector"
       @client.verify_mode = OpenSSL::SSL::VERIFY_NONE if no_ssl_validation
       @client.override_headers["Content-Type"] = "application/json"
       if use_compression

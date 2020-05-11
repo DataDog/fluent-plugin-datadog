@@ -41,7 +41,7 @@ TCP example:
 
   # Optional parameters
   dd_source '<INTEGRATION_NAME>' 
-  dd_tags '<KEY1:VALU1>,<KEY2:VALUE2>'
+  dd_tags '<KEY1:VALUE1>,<KEY2:VALUE2>'
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
   <buffer>
           @type memory
