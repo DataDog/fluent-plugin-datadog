@@ -98,7 +98,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **dd_hostname** | Used by Datadog to identify the host submitting the logs. | `hostname -f` |
 | **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
-| **host** | Proxy endpoint when logs are not directly forwarded to Datadog | intake.logs.datadoghq.com |
+| **host** | Proxy endpoint when logs are not directly forwarded to Datadog | http-intake.logs.datadoghq.com |
 
 ### Docker and Kubernetes tags
 
