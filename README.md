@@ -1,7 +1,6 @@
 # Fluentd output plugin for Datadog
 
-It mainly contains a proper JSON formatter and a socket handler that
-streams logs directly to Datadog - so no need to use a log shipper
+This output plugin allows sending logs directly from Fluentd to Datadog - so you don't have to use a separate log shipper
 if you don't wan't to.
 
 ## Pre-requirements
@@ -120,6 +119,24 @@ Configuration example:
 # Collect metadata for logs tagged with "kubernetes.**"
 <filter kubernetes.*>
   type kubernetes_metadata
+</filter>
+```
+
+### Encoding
+
+Datadog's API expects log messages to be encoded in UTF-8.
+If some of your logs are encoded with a different encoding, we recommend using the [`record_modifier` filter plugin](https://github.com/repeatedly/fluent-plugin-record-modifier#char_encoding)
+to encode these logs to UTF-8.
+
+Configuration example:
+
+```
+# Change encoding of logs tagged with "datadog.**"
+<filter datadog.**>
+  @type record_modifier
+
+  # change encoding if your logs from your logs '<SOURCE_ENCODING>' to 'utf-8'
+  char_encoding <SOURCE_ENCODING>:utf-8
 </filter>
 ```
 
