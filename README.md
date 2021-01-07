@@ -39,7 +39,7 @@ TCP example:
   tag_key 'tag'
 
   # Optional parameters
-  dd_source '<INTEGRATION_NAME>' 
+  dd_source '<INTEGRATION_NAME>'
   dd_tags '<KEY1:VALUE1>,<KEY2:VALUE2>'
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
   <buffer>
@@ -135,7 +135,7 @@ Configuration example:
 <filter datadog.**>
   @type record_modifier
 
-  # change encoding if your logs from your logs '<SOURCE_ENCODING>' to 'utf-8'
+  # change the encoding from the '<SOURCE_ENCODING>' of your logs to 'utf-8'
   char_encoding <SOURCE_ENCODING>:utf-8
 </filter>
 ```
