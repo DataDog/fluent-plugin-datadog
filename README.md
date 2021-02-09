@@ -8,7 +8,7 @@ if you don't wan't to.
 
 | fluent-plugin-datadog | Fluentd    | Ruby   |
 |:--------------------------|:-----------|:-------|
-| \>= 0.12.0               | \>= v1      | \>= 2.4 |
+| \>= 0.12.0               | \>= v1.7.0      | \>= 2.4 |
 | < 0.12.0                   | \>= v0.12.0 | \>= 2.1 |
 
 To add the plugin to your fluentd agent, use the following command:
