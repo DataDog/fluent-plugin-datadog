@@ -32,9 +32,42 @@ class FluentDatadogTest < Test::Unit::TestCase
 
     test "api key should succeed" do
       plugin = create_driver(%[
-        api_key = foo
+        api_key foo
       ])
       assert_not_nil plugin
+    end
+
+    test "proxy is set correctly" do
+      ENV["HTTP_PROXY"] = "http://env-proxy-host:123"
+      plugin = create_driver(%[
+        api_key foo
+        proxy http://proxy-username:proxy-password@proxy-host.local:12345
+      ])
+      assert_not_nil plugin
+      plugin.run do
+        proxy_uri = plugin.instance.instance_variable_get(:@client).instance_variable_get(:@client).proxy_uri
+        assert_equal "proxy-host.local", proxy_uri.host
+        assert_equal 12345, proxy_uri.port
+        assert_equal "proxy-username", proxy_uri.user
+        assert_equal "proxy-password", proxy_uri.password
+      end
+      ENV["HTTP_PROXY"] = nil
+    end
+
+    test "proxy is pulled from env when not set in config" do
+      ENV["HTTP_PROXY"] = "http://env-proxy-host:123"
+      plugin = create_driver(%[
+        api_key foo
+      ])
+      assert_not_nil plugin
+      plugin.run do
+        proxy_uri = plugin.instance.instance_variable_get(:@client).instance_variable_get(:@client).proxy_uri
+        assert_equal "env-proxy-host", proxy_uri.host
+        assert_equal 123, proxy_uri.port
+        assert_equal nil, proxy_uri.user
+        assert_equal nil, proxy_uri.password
+      end
+      ENV["HTTP_PROXY"] = nil
     end
   end
 
@@ -170,7 +203,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 500)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
       assert_raise(Fluent::DatadogOutput::RetryableError) do
         client.send(payload)
       end
@@ -180,7 +213,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 400)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
       assert_nothing_raised do
         client.send(payload)
       end
