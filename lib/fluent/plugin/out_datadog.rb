@@ -306,7 +306,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       port = use_ssl ? ssl_port : port
       @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
       logger.info("Starting HTTP connection to #{protocol}://#{host}:#{port.to_s} with compression " + (use_compression ? "enabled" : "disabled"))
-      @client = Net::HTTP::Persistent.new name: "fluent-plugin-datadog-logcollector"
+      @client = Net::HTTP::Persistent.new name: "fluent-plugin-datadog-logcollector", proxy: :ENV
       @client.verify_mode = OpenSSL::SSL::VERIFY_NONE if no_ssl_validation
       @client.override_headers["Content-Type"] = "application/json"
       if use_compression
