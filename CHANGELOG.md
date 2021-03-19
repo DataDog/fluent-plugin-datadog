@@ -1,5 +1,8 @@
+## 0.13.0
+ - Support HTTP proxies #46
+
 ## 0.12.1
- - Address persistent connection creation issues 
+ - Address persistent connection creation issues
 
 ## 0.12.0
  - Migrate to Fluentd v1 APIs
