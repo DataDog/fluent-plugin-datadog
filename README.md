@@ -23,7 +23,7 @@ If you installed the td-agent instead
 
 To match events and send them to Datadog, simply add the following code to your configuration file.
 
-TCP example:
+HTTP example:
 
 ```xml
 # Match events tagged with "datadog.**" and
@@ -42,6 +42,10 @@ TCP example:
   dd_source '<INTEGRATION_NAME>'
   dd_tags '<KEY1:VALUE1>,<KEY2:VALUE2>'
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
+
+  # Optional http proxy
+  http_proxy 'http://my-proxy.example'
+
   <buffer>
           @type memory
           flush_thread_count 4
@@ -49,7 +53,6 @@ TCP example:
           chunk_limit_size 5m
           chunk_limit_records 500
   </buffer>
-
 
 </match>
 ```
@@ -98,6 +101,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | http-intake.logs.datadoghq.com |
+| **http_proxy** | HTTP proxy, only takes effect if HTTP forwarding is enabled (`use_http`). Defaults to `HTTP_PROXY`/`http_proxy` env vars. | nil |
 
 ### Docker and Kubernetes tags
 
