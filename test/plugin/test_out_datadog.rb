@@ -69,6 +69,18 @@ class FluentDatadogTest < Test::Unit::TestCase
       end
       ENV["HTTP_PROXY"] = nil
     end
+
+    test "invalid proxy raises exception" do
+      plugin = create_driver(%[
+        api_key foo
+        proxy tcp://invalid
+      ])
+      assert_not_nil plugin
+      assert_raise(ArgumentError) do
+        plugin.run do
+        end
+      end
+    end
   end
 
   sub_test_case "enrich_record" do
