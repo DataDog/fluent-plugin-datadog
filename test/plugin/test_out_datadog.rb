@@ -17,7 +17,7 @@ class FluentDatadogTest < Test::Unit::TestCase
 
   def create_valid_subject
     create_driver(%[
-        api_key = foo
+        api_key foo
       ]).instance
   end
 
