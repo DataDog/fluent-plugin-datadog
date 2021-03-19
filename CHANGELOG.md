@@ -1,5 +1,5 @@
 ## 0.13.0
- - Support HTTP proxies #46
+ - Support HTTP proxies [#46](https://github.com/DataDog/fluent-plugin-datadog/pull/46)
 
 ## 0.12.1
  - Address persistent connection creation issues
