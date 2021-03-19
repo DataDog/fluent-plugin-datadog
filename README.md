@@ -45,7 +45,7 @@ HTTP example:
   dd_sourcecategory '<MY_SOURCE_CATEGORY>'
 
   # Optional http proxy
-  proxy 'http://my-proxy.example'
+  http_proxy 'http://my-proxy.example'
 
   <buffer>
           @type memory
@@ -102,7 +102,7 @@ As fluent-plugin-datadog is an output_buffer, you can set all output_buffer prop
 | **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | http-intake.logs.datadoghq.com |
-| **proxy** | HTTP proxy, only takes effect if HTTP forwarding is enabled (`use_http`). Defaults to `HTTP_PROXY`/`http_proxy` env vars. | nil |
+| **http_proxy** | HTTP proxy, only takes effect if HTTP forwarding is enabled (`use_http`). Defaults to `HTTP_PROXY`/`http_proxy` env vars. | nil |
 
 ### Docker and Kubernetes tags
 

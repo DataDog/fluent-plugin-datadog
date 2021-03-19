@@ -49,7 +49,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :use_compression, :bool, :default => true
   config_param :compression_level, :integer, :default => 6
   config_param :no_ssl_validation, :bool, :default => false
-  config_param :proxy, :string, :default => nil
+  config_param :http_proxy, :string, :default => nil
 
   # Format settings
   config_param :use_json, :bool, :default => true
@@ -89,7 +89,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   def start
     super
-    @client = new_client(log, @api_key, @use_http, @use_ssl, @no_ssl_validation, @host, @ssl_port, @port, @proxy, @use_compression)
+    @client = new_client(log, @api_key, @use_http, @use_ssl, @no_ssl_validation, @host, @ssl_port, @port, @http_proxy, @use_compression)
   end
 
   def shutdown
@@ -261,9 +261,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   end
 
   # Build a new transport client
-  def new_client(logger, api_key, use_http, use_ssl, no_ssl_validation, host, ssl_port, port, proxy, use_compression)
+  def new_client(logger, api_key, use_http, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression)
     if use_http
-      DatadogHTTPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port, proxy, use_compression, api_key
+      DatadogHTTPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key
     else
       DatadogTCPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port
     end
@@ -301,14 +301,14 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     require 'net/http'
     require 'net/http/persistent'
 
-    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, proxy, use_compression, api_key)
+    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key)
       @logger = logger
       protocol = use_ssl ? "https" : "http"
       port = use_ssl ? ssl_port : port
       @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
       proxy_uri = :ENV
-      if proxy
-        proxy_uri = URI.parse(proxy)
+      if http_proxy
+        proxy_uri = URI.parse(http_proxy)
       elsif ENV['HTTP_PROXY'] || ENV['http_proxy']
         logger.info("Using HTTP proxy defined in `HTTP_PROXY`/`http_proxy` env vars")
       end

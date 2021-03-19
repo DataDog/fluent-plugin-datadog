@@ -41,7 +41,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       ENV["HTTP_PROXY"] = "http://env-proxy-host:123"
       plugin = create_driver(%[
         api_key foo
-        proxy http://proxy-username:proxy-password@proxy-host.example:12345
+        http_proxy http://proxy-username:proxy-password@proxy-host.example:12345
       ])
       assert_not_nil plugin
       plugin.run do
@@ -73,7 +73,7 @@ class FluentDatadogTest < Test::Unit::TestCase
     test "invalid proxy raises exception" do
       plugin = create_driver(%[
         api_key foo
-        proxy tcp://invalid
+        http_proxy tcp://invalid
       ])
       assert_not_nil plugin
       assert_raise(ArgumentError) do
