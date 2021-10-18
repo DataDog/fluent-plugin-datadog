@@ -223,6 +223,18 @@ class FluentDatadogTest < Test::Unit::TestCase
       end
     end
 
+    # note that in theory, v1 routes should not return a 429 but still
+    # we added this mechanism for v1 routes while implementing v2 ones
+    test "should retry when server is returning 429 (v1 routes)" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 429)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send(payload)
+      end
+    end
+
     test "should not retry when server is returning 4XX (v1 routes)" do
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 400)
@@ -239,6 +251,16 @@ class FluentDatadogTest < Test::Unit::TestCase
     test "should retry when server is returning 5XX" do
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 500, true)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+          client.send(payload)
+      end
+    end
+
+    test "should retry when server is returning 429 (v2 routes)" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 429, true)
       payload = '{}'
       client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
       assert_raise(Fluent::DatadogOutput::RetryableError) do
@@ -297,7 +319,7 @@ class FluentDatadogTest < Test::Unit::TestCase
               'Content-Type'=>'application/json',
               'Dd-Api-Key'=> "#{api_key}",
               'Dd-Evp-Origin'=>'fluent',
-              'Dd-Evp-Origin-Version'=> "#{Datadog::FluentPlugin::GEM_VERSION}",
+              'Dd-Evp-Origin-Version'=> "#{DatadogFluentPlugin::VERSION}",
               'Keep-Alive'=>'30',
               'User-Agent'=>'Ruby'
           })

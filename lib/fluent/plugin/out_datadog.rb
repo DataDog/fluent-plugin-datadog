@@ -325,7 +325,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       unless force_v1_routes
         @client.override_headers["DD-API-KEY"] = api_key
         @client.override_headers["DD-EVP-ORIGIN"] = "fluent"
-        @client.override_headers["DD-EVP-ORIGIN-VERSION"] = Datadog::FluentPlugin::GEM_VERSION
+        @client.override_headers["DD-EVP-ORIGIN-VERSION"] = DatadogFluentPlugin::VERSION
       end
       @client.override_headers["Content-Type"] = "application/json"
       if use_compression
@@ -342,7 +342,8 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       request.body = payload
       response = @client.request @uri, request
       res_code = response.code.to_i
-      if res_code >= 500
+      # on a backend error or on an http 429, retry with backoff
+      if res_code >= 500 || res_code == 429
         raise RetryableError.new "Unable to send payload: #{res_code} #{response.message}"
       end
       if res_code >= 400
