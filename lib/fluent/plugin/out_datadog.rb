@@ -9,6 +9,8 @@ require "yajl"
 require "zlib"
 require "fluent/plugin/output"
 
+require_relative "version"
+
 class Fluent::DatadogOutput < Fluent::Plugin::Output
   class RetryableError < StandardError;
   end
@@ -50,6 +52,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :compression_level, :integer, :default => 6
   config_param :no_ssl_validation, :bool, :default => false
   config_param :http_proxy, :string, :default => nil
+  config_param :force_v1_routes, :bool, :default => false
 
   # Format settings
   config_param :use_json, :bool, :default => true
@@ -89,7 +92,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   def start
     super
-    @client = new_client(log, @api_key, @use_http, @use_ssl, @no_ssl_validation, @host, @ssl_port, @port, @http_proxy, @use_compression)
+    @client = new_client(log, @api_key, @use_http, @use_ssl, @no_ssl_validation, @host, @ssl_port, @port, @http_proxy, @use_compression, @force_v1_routes)
   end
 
   def shutdown
@@ -261,9 +264,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   end
 
   # Build a new transport client
-  def new_client(logger, api_key, use_http, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression)
+  def new_client(logger, api_key, use_http, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, force_v1_routes)
     if use_http
-      DatadogHTTPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key
+      DatadogHTTPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key, force_v1_routes
     else
       DatadogTCPClient.new logger, use_ssl, no_ssl_validation, host, ssl_port, port
     end
@@ -301,20 +304,29 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     require 'net/http'
     require 'net/http/persistent'
 
-    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key)
+    def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, use_compression, api_key, force_v1_routes = false)
       @logger = logger
       protocol = use_ssl ? "https" : "http"
       port = use_ssl ? ssl_port : port
-      @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
+      if force_v1_routes
+        @uri = URI("#{protocol}://#{host}:#{port.to_s}/v1/input/#{api_key}")
+      else
+        @uri = URI("#{protocol}://#{host}:#{port.to_s}/api/v2/logs")
+      end
       proxy_uri = :ENV
       if http_proxy
         proxy_uri = URI.parse(http_proxy)
       elsif ENV['HTTP_PROXY'] || ENV['http_proxy']
         logger.info("Using HTTP proxy defined in `HTTP_PROXY`/`http_proxy` env vars")
       end
-      logger.info("Starting HTTP connection to #{protocol}://#{host}:#{port.to_s} with compression " + (use_compression ? "enabled" : "disabled"))
+      logger.info("Starting HTTP connection to #{protocol}://#{host}:#{port.to_s} with compression " + (use_compression ? "enabled" : "disabled") + (force_v1_routes ? " using v1 routes" : " using v2 routes"))
       @client = Net::HTTP::Persistent.new name: "fluent-plugin-datadog-logcollector", proxy: proxy_uri
       @client.verify_mode = OpenSSL::SSL::VERIFY_NONE if no_ssl_validation
+      unless force_v1_routes
+        @client.override_headers["DD-API-KEY"] = api_key
+        @client.override_headers["DD-EVP-ORIGIN"] = "fluent"
+        @client.override_headers["DD-EVP-ORIGIN-VERSION"] = Datadog::FluentPlugin::GEM_VERSION
+      end
       @client.override_headers["Content-Type"] = "application/json"
       if use_compression
         @client.override_headers["Content-Encoding"] = "gzip"
