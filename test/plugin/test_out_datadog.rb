@@ -2,6 +2,7 @@ require "fluent/test"
 require "fluent/test/helpers"
 require "fluent/test/driver/output"
 require "fluent/plugin/out_datadog"
+require "fluent/plugin/version"
 require 'webmock/test_unit'
 
 class FluentDatadogTest < Test::Unit::TestCase
@@ -210,20 +211,44 @@ class FluentDatadogTest < Test::Unit::TestCase
     end
   end
 
-  sub_test_case "http connection errors" do
+  # v1 routes
+  sub_test_case "http connection errors (v1 routes)" do
     test "should retry when server is returning 5XX" do
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 500)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
       assert_raise(Fluent::DatadogOutput::RetryableError) do
         client.send(payload)
       end
     end
 
-    test "should not retry when server is returning 4XX" do
+    test "should not retry when server is returning 4XX (v1 routes)" do
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 400)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
+      assert_nothing_raised do
+        client.send(payload)
+      end
+    end
+  end
+
+  # v2 routes
+  sub_test_case "http connection errors (v2 routes)" do
+    test "should retry when server is returning 5XX" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 500, true)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+          client.send(payload)
+      end
+    end
+
+    test "should not retry when server is returning 4XX (v2 routes)" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 400, true)
       payload = '{}'
       client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
       assert_nothing_raised do
@@ -232,9 +257,14 @@ class FluentDatadogTest < Test::Unit::TestCase
     end
   end
 
-  def stub_dd_request_with_return_code(api_key, return_code)
-    stub_dd_request(api_key).
-        to_return(status: return_code, body: "", headers: {})
+  def stub_dd_request_with_return_code(api_key, return_code, v2_routes = false)
+    if v2_routes
+        stub_dd_request_v2_routes(api_key).
+            to_return(status: return_code, body: "", headers: {})
+    else
+        stub_dd_request(api_key).
+            to_return(status: return_code, body: "", headers: {})
+    end
   end
 
   def stub_dd_request_with_error(api_key, error)
@@ -254,5 +284,22 @@ class FluentDatadogTest < Test::Unit::TestCase
                 'Keep-Alive' => '30',
                 'User-Agent' => 'Ruby'
             })
+  end
+
+  def stub_dd_request_v2_routes(api_key)
+    stub_request(:post, "http://datadog.com/api/v2/logs").
+        with(
+          body: "{}",
+          headers: {
+              'Accept'=>'*/*',
+              'Accept-Encoding'=>'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+              'Connection'=>'keep-alive',
+              'Content-Type'=>'application/json',
+              'Dd-Api-Key'=> "#{api_key}",
+              'Dd-Evp-Origin'=>'fluent',
+              'Dd-Evp-Origin-Version'=> "#{Datadog::FluentPlugin::GEM_VERSION}",
+              'Keep-Alive'=>'30',
+              'User-Agent'=>'Ruby'
+          })
   end
 end

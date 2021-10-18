@@ -30,5 +30,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", '~> 3.1'
   spec.add_development_dependency "rake", "~> 12.0"
   spec.add_development_dependency "yajl-ruby", "~> 1.2"
-  spec.add_development_dependency 'webmock', "~> 3.5.0"
+  spec.add_development_dependency 'webmock', "~> 3.6.0"
 end
