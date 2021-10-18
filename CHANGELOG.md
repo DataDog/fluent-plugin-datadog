@@ -1,3 +1,6 @@
+## 0.14.0
+ - Support Datadog v2 endpoints [#48](https://github.com/DataDog/fluent-plugin-datadog/pull/48)
+
 ## 0.13.0
  - Support HTTP proxies [#46](https://github.com/DataDog/fluent-plugin-datadog/pull/46)
 
