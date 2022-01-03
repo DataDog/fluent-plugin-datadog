@@ -1,3 +1,6 @@
+## 0.14.1
+ - Use logger from PluginLoggerMixin [#50](https://github.com/DataDog/fluent-plugin-datadog/pull/50) by [@aglover-zendesk](https://github.com/aglover-zendesk)
+
 ## 0.14.0
  - Support Datadog v2 endpoints [#48](https://github.com/DataDog/fluent-plugin-datadog/pull/48)
 
