@@ -1,3 +1,6 @@
+## 0.14.2
+ - Upgrade `net-http-persistent` dependency [#54](https://github.com/DataDog/fluent-plugin-datadog/pull/54) by [@javiercri](https://github.com/javiercri)
+
 ## 0.14.1
  - Use logger from PluginLoggerMixin [#50](https://github.com/DataDog/fluent-plugin-datadog/pull/50) by [@aglover-zendesk](https://github.com/aglover-zendesk)
 
