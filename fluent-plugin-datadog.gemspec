@@ -31,4 +31,11 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", "~> 12.0"
   spec.add_development_dependency "yajl-ruby", "~> 1.2"
   spec.add_development_dependency 'webmock', "~> 3.6.0"
+
+  spec.metadata      = {
+    'bug_tracker_uri'   => 'https://github.com/DataDog/fluent-plugin-datadog/issues',
+    'changelog_uri'     => 'https://github.com/DataDog/fluent-plugin-datadog/blob/master/CHANGELOG.md',
+    'documentation_uri' => 'https://github.com/DataDog/fluent-plugin-datadog/blob/master/README.md',
+    'source_code_uri'   => 'https://github.com/DataDog/fluent-plugin-datadog'
+  }
 end
