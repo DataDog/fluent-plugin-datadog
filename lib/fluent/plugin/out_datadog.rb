@@ -11,6 +11,10 @@ require "fluent/plugin/output"
 
 require_relative "version"
 
+def nilish?(s)
+  s.empty? || s == "nil" || s == "false" || s == "null"
+end
+
 class Fluent::DatadogOutput < Fluent::Plugin::Output
   class RetryableError < StandardError;
   end
@@ -80,6 +84,8 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
     @dd_hostname = Socket.gethostname if @dd_hostname.empty?
+
+    @timestamp_key = nil if nilish?(@timestamp_key)
   end
 
   def multi_workers_ready?

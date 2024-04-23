@@ -120,6 +120,18 @@ class FluentDatadogTest < Test::Unit::TestCase
       assert_equal "1970-01-01T03:25:45.000Z", result["foo"]
     end
 
+    test "should not set timestamp tag if timestamp_key is nil" do
+      plugin = create_driver(%[
+        api_key foo
+        timestamp_key nil
+      ]).instance
+      time = 12345
+      record = {"message" => "bar"}
+      result = plugin.enrich_record(nil, time, record)
+      # only hostname and message fields are set, no timestamp field
+      assert_equal ["hostname", "message"], result.keys.sort
+    end
+
     test "should add specific datadog attributes" do
       plugin = create_driver(%[
         api_key foo
