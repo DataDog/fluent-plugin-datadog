@@ -1,3 +1,6 @@
+## 0.14.3
+- `timestamp_key` is ignored if empty, `nil`, or `null` as documented
+ - 
 ## 0.14.2
  - Upgrade `net-http-persistent` dependency [#54](https://github.com/DataDog/fluent-plugin-datadog/pull/54) by [@javiercri](https://github.com/javiercri)
 
