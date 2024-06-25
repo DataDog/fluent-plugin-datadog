@@ -426,6 +426,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       tags.push("container_name:" + kubernetes['container_name']) unless kubernetes['container_name'].nil?
       tags.push("kube_namespace:" + kubernetes['namespace_name']) unless kubernetes['namespace_name'].nil?
       tags.push("pod_name:" + kubernetes['pod_name']) unless kubernetes['pod_name'].nil?
+      tags.push("container_id:" + kubernetes['docker_id']) unless kubernetes['docker_id'].nil?
       return tags.join(",")
     end
     nil
