@@ -19,6 +19,7 @@ If you installed the td-agent instead
     /usr/sbin/td-agent-gem install fluent-plugin-datadog
 
 ## Usage
+
 ### Configure the output plugin
 
 To match events and send them to Datadog, simply add the following code to your configuration file.
@@ -74,10 +75,9 @@ Produces the following event:
 }
 ```
 
-### fluent-plugin-datadog properties
-Let's go deeper on the plugin configuration.
+### Advanced configuration
 
-As fluent-plugin-datadog is an output_buffer, you can set all output_buffer properties like it's describe in the [fluentd documentation](http://docs.fluentd.org/articles/output-plugin-overview#buffered-output-parameters "documentation").
+As `fluent-plugin-datadog` is a buffered output plugin, you can set all of the buffered output-specific properties as described in the [fluentd documentation](https://docs.fluentd.org/v/0.12/output#buffered-output-parameters).
 
 |  Property   |  Description                                                             |  Default value |
 |-------------|--------------------------------------------------------------------------|----------------|
