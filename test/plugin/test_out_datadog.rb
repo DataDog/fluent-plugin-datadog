@@ -229,7 +229,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 500)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
       assert_raise(Fluent::DatadogOutput::RetryableError) do
         client.send(payload)
       end
@@ -241,7 +241,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 429)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
       assert_raise(Fluent::DatadogOutput::RetryableError) do
         client.send(payload)
       end
@@ -251,7 +251,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 400)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key, true
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
       assert_nothing_raised do
         client.send(payload)
       end
@@ -264,7 +264,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 500, true)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key
       assert_raise(Fluent::DatadogOutput::RetryableError) do
           client.send(payload)
       end
@@ -274,7 +274,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 429, true)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key
       assert_raise(Fluent::DatadogOutput::RetryableError) do
           client.send(payload)
       end
@@ -284,7 +284,7 @@ class FluentDatadogTest < Test::Unit::TestCase
       api_key = 'XXX'
       stub_dd_request_with_return_code(api_key, 400, true)
       payload = '{}'
-      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, false, api_key
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key
       assert_nothing_raised do
         client.send(payload)
       end
