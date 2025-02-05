@@ -3,7 +3,7 @@
 # and another team can own the rest of the directory.
 
 # All files reviwed by maintainers
-*                     @DataDog/agent-processing-and-routing
+*                     @DataDog/agent-log-pipelines
 
 # Documentation includes docs team
 *.md                  @DataDog/documentation
