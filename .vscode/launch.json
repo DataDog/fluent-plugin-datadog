@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Fluentd with Datadog Plugin",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/fluentd",
+            "args": [
+                "-c",
+                "${workspaceFolder}/test/fluentd.conf",
+                "-p",
+                "${workspaceFolder}/lib/fluent/plugin"
+            ],
+            "env": {
+                "FLUENTD_DISABLE_BUNDLER_INJECTION": "1"
+            }
+        },
+        {
+            "name": "Run Tests",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/rake",
+            "args": ["test"]
+        }
+    ]
+} 
