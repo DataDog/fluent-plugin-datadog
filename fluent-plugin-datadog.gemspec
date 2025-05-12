@@ -30,6 +30,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "test-unit", '~> 3.1'
   spec.add_development_dependency "rake", "~> 12.0"
   spec.add_development_dependency 'webmock', "~> 3.6.0"
+  spec.add_development_dependency "ruby-debug-ide"
+  spec.add_development_dependency "debase"
 
   spec.metadata      = {
     'bug_tracker_uri'   => 'https://github.com/DataDog/fluent-plugin-datadog/issues',

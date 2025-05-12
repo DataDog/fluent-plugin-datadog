@@ -2,26 +2,35 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run Fluentd with Datadog Plugin",
-            "type": "node",
+            "name": "Debug Fluentd with Plugin",
+            "type": "Ruby",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/fluentd",
+            "program": "/usr/local/bin/bundle",
             "args": [
+                "exec",
+                "fluentd",
                 "-c",
-                "${workspaceFolder}/test/fluentd.conf",
+                "${workspaceFolder}/test/fluentd-test.conf",
                 "-p",
                 "${workspaceFolder}/lib/fluent/plugin"
             ],
-            "env": {
-                "FLUENTD_DISABLE_BUNDLER_INJECTION": "1"
-            }
+            "cwd": "${workspaceFolder}",
+            "showDebuggerOutput": true,
+            "useBundler": true
         },
         {
-            "name": "Run Tests",
-            "type": "node",
+            "name": "Debug Rake Tests",
+            "type": "Ruby",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/rake",
-            "args": ["test"]
+            "program": "/usr/local/bin/bundle",
+            "args": [
+                "exec",
+                "rake",
+                "test"
+            ],
+            "cwd": "${workspaceFolder}",
+            "showDebuggerOutput": true,
+            "useBundler": true
         }
     ]
 } 
