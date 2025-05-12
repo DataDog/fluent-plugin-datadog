@@ -156,3 +156,11 @@ To build a new version of this plugin and push it to RubyGems:
 
 `curl -u <USERNAME> https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials`, it will ask for your password.
 
+## Development Environment
+
+This repository includes the files to run it in a dev container in VS Code. To use it:
+
+1. Install VS Code and Docker.
+2. Open the project in VS Code with the Dev Containers extension.
+
+VS Code will build and start the container automatically.
