@@ -158,7 +158,7 @@ To build a new version of this plugin and push it to RubyGems:
 
 ## Development Environment
 
-This repository includes the files to run it in a devcontainer in VS Code. To use it:
+This repository includes the files to run it in a dev container in VS Code. To use it:
 
 1. Install VS Code and Docker
 2. Open the project in VS Code with the Dev Containers extension.
