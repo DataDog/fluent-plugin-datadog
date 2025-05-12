@@ -14,10 +14,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Configure Bundler to exclude development gems
+      run: bundle config set --local without development
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 3.0
+        ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
     - name: Run tests
       run: bundle exec rake
