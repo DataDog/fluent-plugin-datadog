@@ -27,10 +27,10 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "net-http-persistent", '~> 4.0.1'
   spec.add_runtime_dependency "rake", "~> 12.0"
   spec.add_runtime_dependency "test-unit", "~> 3.1"
+  spec.add_runtime_dependency "webmock", "~> 3.6.0"
 
   spec.add_development_dependency "bundler", "~> 2.1"
   spec.add_development_dependency "yajl-ruby", "~> 1.2"
-  spec.add_development_dependency 'webmock', "~> 3.6.0"
   spec.add_development_dependency "ruby-debug-ide"
   spec.add_development_dependency "debase"
 
