@@ -5,7 +5,7 @@
 
 require "socket"
 require "openssl"
-require "yajl"
+require "json"
 require "zlib"
 require "fluent/plugin/output"
 
@@ -118,10 +118,10 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     # is compatible with Time.at below.
     record = enrich_record(tag, time.to_f, record)
     if @use_http
-      record = Yajl.dump(record)
+      record = JSON.generate(record)
     else
       if @use_json
-        record = "#{api_key} #{Yajl.dump(record)}"
+        record = "#{api_key} #{JSON.generate(record)}"
       else
         record = "#{api_key} #{record}"
       end
