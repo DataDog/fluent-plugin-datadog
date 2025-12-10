@@ -2,35 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Fluentd with Plugin",
-            "type": "Ruby",
+            "type": "ruby_lsp",
             "request": "launch",
-            "program": "/usr/local/bin/bundle",
-            "args": [
-                "exec",
-                "fluentd",
-                "-c",
-                "${workspaceFolder}/test/fluentd-test.conf",
-                "-p",
-                "${workspaceFolder}/lib/fluent/plugin"
-            ],
-            "cwd": "${workspaceFolder}",
-            "showDebuggerOutput": true,
-            "useBundler": true
-        },
-        {
-            "name": "Debug Rake Tests",
-            "type": "Ruby",
-            "request": "launch",
-            "program": "/usr/local/bin/bundle",
-            "args": [
-                "exec",
-                "rake",
-                "test"
-            ],
-            "cwd": "${workspaceFolder}",
-            "showDebuggerOutput": true,
-            "useBundler": true
+            "name": "Run Tests",
+            "program": "bundle exec ruby -Itest test/plugin/test_out_datadog.rb",
         }
     ]
 } 
