@@ -102,6 +102,7 @@ As `fluent-plugin-datadog` is a buffered output plugin, you can set all of the b
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
 | **host** | Proxy endpoint when logs are not directly forwarded to Datadog | http-intake.logs.datadoghq.com |
 | **http_proxy** | HTTP proxy, only takes effect if HTTP forwarding is enabled (`use_http`). Defaults to `HTTP_PROXY`/`http_proxy` env vars. | nil |
+| **delete_extracted_tag_attributes** | When true, removes `kubernetes` and `docker` attributes from log records after extracting them as tags. Useful to avoid duplicate data in Datadog logs UI. | false |
 
 ### Docker and Kubernetes tags
 
@@ -114,6 +115,8 @@ If your logs contain any of the following attributes, it will automatically be a
 * kubernetes.namespace_name
 * kubernetes.pod_name
 * docker.container_id
+
+**Note:** By default, these values will appear twice in the Datadog logs UI, once as tags (e.g., `container_name:myapp`) and once as attributes (e.g., `@kubernetes.container_name`). If you prefer to avoid this duplication, set `delete_extracted_tag_attributes` to `true` in your configuration. This will remove the `kubernetes` and `docker` attributes from the log record after the tags have been extracted.
 
 If the Datadog Agent collect them automatically, FluentD requires a plugin for this. We recommend using [fluent-plugin-kubernetes_metadata_filter](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter) to collect Docker and Kubernetes metadata.
 

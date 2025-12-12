@@ -150,6 +150,83 @@ class FluentDatadogTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "delete_extracted_tag_attributes" do
+    test "should not delete kubernetes/docker attributes by default" do
+      plugin = create_driver(%[
+        api_key foo
+      ]).instance
+      record = {
+        "message" => "test",
+        "kubernetes" => {
+          "container_name" => "myapp",
+          "namespace_name" => "default",
+          "pod_name" => "myapp-abc123"
+        },
+        "docker" => {
+          "container_id" => "abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_not_nil result["kubernetes"]
+      assert_not_nil result["docker"]
+    end
+
+    test "should delete kubernetes/docker attributes when delete_extracted_tag_attributes is true" do
+      plugin = create_driver(%[
+        api_key foo
+        delete_extracted_tag_attributes true
+      ]).instance
+      record = {
+        "message" => "test",
+        "kubernetes" => {
+          "container_name" => "myapp",
+          "namespace_name" => "default",
+          "pod_name" => "myapp-abc123"
+        },
+        "docker" => {
+          "container_id" => "abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_nil result["kubernetes"]
+      assert_nil result["docker"]
+      # Verify tags were still extracted
+      assert_true result["ddtags"].include?("container_name:myapp")
+      assert_true result["ddtags"].include?("kube_namespace:default")
+      assert_true result["ddtags"].include?("pod_name:myapp-abc123")
+      assert_true result["ddtags"].include?("container_id:abc123")
+    end
+
+    test "should handle records without kubernetes/docker attributes when delete_extracted_tag_attributes is true" do
+      plugin = create_driver(%[
+        api_key foo
+        delete_extracted_tag_attributes true
+      ]).instance
+      record = {"message" => "test"}
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_nil result["kubernetes"]
+      assert_nil result["docker"]
+    end
+
+    test "should preserve other record attributes when delete_extracted_tag_attributes is true" do
+      plugin = create_driver(%[
+        api_key foo
+        delete_extracted_tag_attributes true
+      ]).instance
+      record = {
+        "message" => "test",
+        "custom_field" => "custom_value",
+        "kubernetes" => {
+          "container_name" => "myapp"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_nil result["kubernetes"]
+      assert_equal "custom_value", result["custom_field"]
+      assert_equal "test", result["message"]
+    end
+  end
+
   sub_test_case "truncation" do
     test "truncate messages of the given length" do
       plugin = create_valid_subject

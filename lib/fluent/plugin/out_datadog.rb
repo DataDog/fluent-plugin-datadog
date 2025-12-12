@@ -43,6 +43,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :dd_source, :string, :default => nil
   config_param :dd_tags, :string, :default => nil
   config_param :dd_hostname, :string, :default => nil
+  config_param :delete_extracted_tag_attributes, :bool, :default => false
 
   # Connection settings
   config_param :host, :string, :default => DD_DEFAULT_HTTP_ENDPOINT
@@ -254,6 +255,12 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
         record["ddtags"] = record["ddtags"] + "," + container_tags
       end
     end
+
+    if @delete_extracted_tag_attributes
+      record.delete('kubernetes')
+      record.delete('docker')
+    end
+
     record
   end
 
