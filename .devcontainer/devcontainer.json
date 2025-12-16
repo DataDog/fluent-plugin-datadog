@@ -1,0 +1,21 @@
+// .devcontainer/devcontainer.json
+{
+  "name": "Fluent Plugin Datadog Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "workspaceFolder": "/workspaces/fluent-plugin-datadog",
+  "postCreateCommand": "bundle install --jobs 4 --retry 3",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "shopify.ruby-lsp",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {  
+        "rubyLsp.bundleExec": true,
+        "rubyLsp.useBundler": true
+      }
+    }
+  }
+}

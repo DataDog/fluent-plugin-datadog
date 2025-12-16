@@ -1,0 +1,11 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "ruby_lsp",
+            "request": "launch",
+            "name": "Run Tests",
+            "program": "bundle exec ruby -Itest test/plugin/test_out_datadog.rb",
+        }
+    ]
+} 
