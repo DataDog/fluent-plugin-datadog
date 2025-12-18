@@ -1,6 +1,8 @@
 ## 0.15.0
 - Provide a configuration option to delete kubernetes and docker attributes from the log after the relevant information has been extracted into tags [#78](https://github.com/DataDog/fluent-plugin-datadog/pull/78) by [@sambart19].
 - Fix launch.json and update readme [#76](https://github.com/DataDog/fluent-plugin-datadog/pull/76)
+- Add custom headers support [#69](https://github.com/DataDog/fluent-plugin-datadog/pull/69)
+  
 ## 0.14.4
 - Source `container_id` tag from kubernetes meta location [#67](https://github.com/DataDog/fluent-plugin-datadog/pull/67) by [@rlafferty](https://github.com/rlafferty)
 
