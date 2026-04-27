@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.0 (2026-04-23)
+## 0.15.1 (2026-04-27)
 
 ### Ruby & Fluentd compatibility
 - Added Ruby 4.x compatibility while maintaining Ruby 3.x support
