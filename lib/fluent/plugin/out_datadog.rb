@@ -26,7 +26,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   DD_DEFAULT_SITE = "datadoghq.com"
   DD_DEFAULT_HTTP_HOST_PREFIX = "http-intake.logs."
-  DD_DEFAULT_TCP_HOST_PREFIX = "agent-intake.logs."
+  DD_DEFAULT_TCP_HOST_PREFIX = "intake.logs."
 
   helpers :compat_parameters
 

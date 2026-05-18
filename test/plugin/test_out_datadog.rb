@@ -107,7 +107,7 @@ class FluentDatadogTest < Test::Unit::TestCase
         use_http false
       ]).instance
       assert_equal "us5.datadoghq.com", plugin.site
-      assert_equal "agent-intake.logs.us5.datadoghq.com", plugin.host
+      assert_equal "intake.logs.us5.datadoghq.com", plugin.host
     end
 
     test "explicit host overrides site-derived default" do
