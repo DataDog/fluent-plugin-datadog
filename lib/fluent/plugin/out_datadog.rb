@@ -26,6 +26,8 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   DD_DEFAULT_SITE = "datadoghq.com"
   DD_DEFAULT_HTTP_HOST_PREFIX = "http-intake.logs."
+  DD_DEFAULT_HTTP_ENDPOINT = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{DD_DEFAULT_SITE}".freeze
+  DD_DEFAULT_TCP_ENDPOINT = "intake.logs.datadoghq.com"
 
   helpers :compat_parameters
 
@@ -93,6 +95,10 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     end
 
     return if @dd_hostname
+
+    if not @use_http and @host == DD_DEFAULT_HTTP_ENDPOINT
+      @host = DD_DEFAULT_TCP_ENDPOINT
+    end
 
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
