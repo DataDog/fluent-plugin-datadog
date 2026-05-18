@@ -24,8 +24,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   DD_MAX_BATCH_SIZE = 5000000
   DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
 
-  DD_DEFAULT_HTTP_ENDPOINT = "http-intake.logs.datadoghq.com"
-  DD_DEFAULT_TCP_ENDPOINT = "intake.logs.datadoghq.com"
+  DD_DEFAULT_SITE = "datadoghq.com"
+  DD_DEFAULT_HTTP_HOST_PREFIX = "http-intake.logs."
+  DD_DEFAULT_TCP_HOST_PREFIX = "agent-intake.logs."
 
   helpers :compat_parameters
 
@@ -45,8 +46,16 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :dd_hostname, :string, :default => nil
   config_param :delete_extracted_tag_attributes, :bool, :default => false
 
+  # Datadog site used to derive the default intake host. Valid values include:
+  # "datadoghq.com" (default), "datadoghq.eu", "us3.datadoghq.com",
+  # "us5.datadoghq.com", "ap1.datadoghq.com", "ddog-gov.com". Any value
+  # explicitly set for `host` takes precedence over the site-derived default.
+  config_param :site, :string, :default => DD_DEFAULT_SITE
+
   # Connection settings
-  config_param :host, :string, :default => DD_DEFAULT_HTTP_ENDPOINT
+  # `host` defaults to nil so we can tell whether the user explicitly set it.
+  # When nil, the host is derived from `site` during `configure`.
+  config_param :host, :string, :default => nil
   config_param :use_ssl, :bool, :default => true
   config_param :port, :integer, :default => 80
   config_param :ssl_port, :integer, :default => 443
@@ -77,11 +86,15 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   def configure(conf)
     compat_parameters_convert(conf, :buffer)
     super
-    return if @dd_hostname
 
-    if not @use_http and @host == DD_DEFAULT_HTTP_ENDPOINT
-      @host = DD_DEFAULT_TCP_ENDPOINT
+    # Derive default host from `site` when the user did not explicitly set `host`.
+    # An explicit `host` always wins; `site` only changes the default.
+    if @host.nil? || @host.empty?
+      prefix = @use_http ? DD_DEFAULT_HTTP_HOST_PREFIX : DD_DEFAULT_TCP_HOST_PREFIX
+      @host = "#{prefix}#{@site}"
     end
+
+    return if @dd_hostname
 
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip

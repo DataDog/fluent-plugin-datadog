@@ -82,6 +82,53 @@ class FluentDatadogTest < Test::Unit::TestCase
         end
       end
     end
+
+    test "default site yields the default HTTP host" do
+      plugin = create_driver(%[
+        api_key foo
+      ]).instance
+      assert_equal "datadoghq.com", plugin.site
+      assert_equal "http-intake.logs.datadoghq.com", plugin.host
+    end
+
+    test "EU site overrides the default HTTP host" do
+      plugin = create_driver(%[
+        api_key foo
+        site datadoghq.eu
+      ]).instance
+      assert_equal "datadoghq.eu", plugin.site
+      assert_equal "http-intake.logs.datadoghq.eu", plugin.host
+    end
+
+    test "site is applied to TCP host when HTTP forwarding is disabled" do
+      plugin = create_driver(%[
+        api_key foo
+        site us5.datadoghq.com
+        use_http false
+      ]).instance
+      assert_equal "us5.datadoghq.com", plugin.site
+      assert_equal "agent-intake.logs.us5.datadoghq.com", plugin.host
+    end
+
+    test "explicit host overrides site-derived default" do
+      plugin = create_driver(%[
+        api_key foo
+        site datadoghq.eu
+        host my-custom-intake.example.com
+      ]).instance
+      assert_equal "datadoghq.eu", plugin.site
+      assert_equal "my-custom-intake.example.com", plugin.host
+    end
+
+    test "explicit host overrides site-derived default for TCP" do
+      plugin = create_driver(%[
+        api_key foo
+        site datadoghq.eu
+        use_http false
+        host my-custom-tcp-intake.example.com
+      ]).instance
+      assert_equal "my-custom-tcp-intake.example.com", plugin.host
+    end
   end
 
   sub_test_case "enrich_record" do
