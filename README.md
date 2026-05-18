@@ -101,7 +101,7 @@ As `fluent-plugin-datadog` is a buffered output plugin, you can set all of the b
 | **service** | Used by Datadog to correlate between logs, traces and metrics. | nil |
 | **port** | Proxy port when logs are not directly forwarded to Datadog and ssl is not used | 80 |
 | **site** | The Datadog [site](https://docs.datadoghq.com/getting_started/site/) to send logs to. Used to derive the default `host` when no explicit `host` is provided. Valid values: `datadoghq.com`, `datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`, `ap1.datadoghq.com`, `ddog-gov.com`. | datadoghq.com |
-| **host** | Proxy endpoint when logs are not directly forwarded to Datadog. When unset, the default is derived from `site`: `http-intake.logs.<site>` for HTTP forwarding, `intake.logs.<site>` for TCP forwarding. An explicitly configured `host` always wins over `site`. | (derived from `site`) |
+| **host** | Proxy endpoint when logs are not directly forwarded to Datadog. When unset, the default is derived from `site` as `http-intake.logs.<site>`. An explicitly configured `host` always wins over `site`. | (derived from `site`) |
 | **http_proxy** | HTTP proxy, only takes effect if HTTP forwarding is enabled (`use_http`). Defaults to `HTTP_PROXY`/`http_proxy` env vars. | nil |
 | **delete_extracted_tag_attributes** | When true, removes `kubernetes` and `docker` attributes from log records after extracting them as tags. Useful to avoid duplicate data in Datadog logs UI. | false |
 

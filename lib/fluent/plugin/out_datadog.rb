@@ -26,7 +26,6 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
 
   DD_DEFAULT_SITE = "datadoghq.com"
   DD_DEFAULT_HTTP_HOST_PREFIX = "http-intake.logs."
-  DD_DEFAULT_TCP_HOST_PREFIX = "intake.logs."
 
   helpers :compat_parameters
 
@@ -90,8 +89,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     # Derive default host from `site` when the user did not explicitly set `host`.
     # An explicit `host` always wins; `site` only changes the default.
     if @host.nil? || @host.empty?
-      prefix = @use_http ? DD_DEFAULT_HTTP_HOST_PREFIX : DD_DEFAULT_TCP_HOST_PREFIX
-      @host = "#{prefix}#{@site}"
+      @host = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{@site}"
     end
 
     return if @dd_hostname
