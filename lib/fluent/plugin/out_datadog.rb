@@ -84,21 +84,35 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     super
   end
 
+  # Pattern that accepts documented Datadog site values.
+  # Matches "datadoghq.com", "datadoghq.eu", "us3.datadoghq.com", etc.
+  # and "ddog-gov.com".  Deliberately rejects near-typos like "datadog.eu".
+  DD_SITE_PATTERN = /\A(?:[a-z0-9]+\.)*datadoghq\.(?:com|eu)\z|\Addog-gov\.com\z/
+
   def configure(conf)
     compat_parameters_convert(conf, :buffer)
     super
 
-    # Derive default host from `site` when the user did not explicitly set `host`.
-    # An explicit `host` always wins; `site` only changes the default.
+    unless @site =~ DD_SITE_PATTERN
+      raise Fluent::ConfigError,
+        "Invalid `site` value: #{@site.inspect}. " \
+        "Known sites: datadoghq.com, datadoghq.eu, us3.datadoghq.com, " \
+        "us5.datadoghq.com, ap1.datadoghq.com, ddog-gov.com."
+    end
+
+    # Derive default host from `site` only for HTTP transport.
+    # TCP users with a non-default site must set `host` explicitly;
+    # TCP users with no host and the default site get the legacy TCP endpoint.
     if @host.nil? || @host.empty?
-      @host = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{@site}"
+      if @use_http
+        @host = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{@site}"
+      elsif @site == DD_DEFAULT_SITE
+        @host = DD_DEFAULT_TCP_ENDPOINT
+      end
+      # TCP + non-default site: @host stays nil/empty; an explicit `host` is required.
     end
 
     return if @dd_hostname
-
-    if not @use_http and @host == DD_DEFAULT_HTTP_ENDPOINT
-      @host = DD_DEFAULT_TCP_ENDPOINT
-    end
 
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
