@@ -84,21 +84,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     super
   end
 
-  # Pattern that accepts documented Datadog site values.
-  # Matches "datadoghq.com", "datadoghq.eu", "us3.datadoghq.com", etc.
-  # and "ddog-gov.com".  Deliberately rejects near-typos like "datadog.eu".
-  DD_SITE_PATTERN = /\A(?:[a-z0-9]+\.)*datadoghq\.(?:com|eu)\z|\Addog-gov\.com\z/
-
   def configure(conf)
     compat_parameters_convert(conf, :buffer)
     super
-
-    unless @site =~ DD_SITE_PATTERN
-      raise Fluent::ConfigError,
-        "Invalid `site` value: #{@site.inspect}. " \
-        "Known sites: datadoghq.com, datadoghq.eu, us3.datadoghq.com, " \
-        "us5.datadoghq.com, ap1.datadoghq.com, ddog-gov.com."
-    end
 
     # Derive default host from `site` only for HTTP transport.
     # TCP users with a non-default site must set `host` explicitly;

@@ -135,31 +135,26 @@ class FluentDatadogTest < Test::Unit::TestCase
       assert_equal Fluent::DatadogOutput::DD_DEFAULT_TCP_ENDPOINT, plugin.host
     end
 
-    test "invalid site raises ConfigError" do
-      assert_raise(Fluent::ConfigError) do
-        create_driver(%[
-          api_key foo
-          site datadog.eu
-        ])
-      end
-    end
-
-    test "typo site missing hq raises ConfigError" do
-      assert_raise(Fluent::ConfigError) do
-        create_driver(%[
-          api_key foo
-          site datadog.com
-        ])
-      end
-    end
-
-    test "valid gov site is accepted" do
+    test "gov site is accepted" do
       plugin = create_driver(%[
         api_key foo
         site ddog-gov.com
       ]).instance
       assert_equal "ddog-gov.com", plugin.site
       assert_equal "http-intake.logs.ddog-gov.com", plugin.host
+    end
+
+    test "unknown site is accepted (no validation, matches agent behavior)" do
+      # The Datadog Agent does not validate `site` (see pkg/config/utils/endpoints.go:
+      # GetMainEndpoint uses `prefix + strings.TrimSpace(c.GetString("site"))` directly).
+      # Mirror that behaviour here — typos surface at DNS resolution time, consistent
+      # with the rest of the Datadog product surface.
+      plugin = create_driver(%[
+        api_key foo
+        site future-region.datadoghq.com
+      ]).instance
+      assert_equal "future-region.datadoghq.com", plugin.site
+      assert_equal "http-intake.logs.future-region.datadoghq.com", plugin.host
     end
 
     test "valid subdomain site is accepted" do
