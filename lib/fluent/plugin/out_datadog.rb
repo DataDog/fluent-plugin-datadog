@@ -45,6 +45,13 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :dd_hostname, :string, :default => nil
   config_param :delete_extracted_tag_attributes, :bool, :default => false
 
+  # When true (default), extract ECS metadata tags from records enriched by the
+  # FluentBit/FireLens ECS metadata filter and append them to ddtags. Extracted
+  # tags include cluster_name, task_arn, task_family, task_revision,
+  # container_name, launch_type, and aws_account (derived from the account-id
+  # segment of TaskARN — no extra HTTP call required). Set to false to opt out.
+  config_param :enable_ecs_tagging, :bool, :default => true
+
   # Connection settings
   config_param :host, :string, :default => DD_DEFAULT_HTTP_ENDPOINT
   config_param :use_ssl, :bool, :default => true
@@ -259,6 +266,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     if @delete_extracted_tag_attributes
       record.delete('kubernetes')
       record.delete('docker')
+      record.delete('ecs')
     end
 
     record
@@ -418,14 +426,18 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     end
   end
 
-  # Collect docker and kubernetes tags for your logs using `filter_kubernetes_metadata` plugin,
-  # for more information about the attribute names, check:
+  # Collect docker, kubernetes, and ECS tags for your logs.
+  # Kubernetes tags require the `filter_kubernetes_metadata` plugin; for more
+  # information about the attribute names, check:
   # https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L265
+  # ECS tags are populated by the FluentBit/FireLens ECS metadata filter; see:
+  # https://docs.fluentbit.io/manual/pipeline/filters/ecs-metadata
 
   def get_container_tags(record)
     [
         get_kubernetes_tags(record),
-        get_docker_tags(record)
+        get_docker_tags(record),
+        (@enable_ecs_tagging ? get_ecs_tags(record) : nil)
     ].compact.join(",")
   end
 
@@ -448,6 +460,39 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       docker = record['docker']
       tags = Array.new
       tags.push("container_id:" + docker['container_id']) unless docker['container_id'].nil?
+      return tags.join(",")
+    end
+    nil
+  end
+
+  # Extract ECS metadata tags from records enriched by the FluentBit/FireLens
+  # ECS metadata filter (https://docs.fluentbit.io/manual/pipeline/filters/ecs-metadata).
+  # The filter nests ECS fields under an "ecs" key with PascalCase names.
+  #
+  # The aws_account tag is derived from the account-id segment of the TaskARN
+  # (arn:aws:ecs:<region>:<account-id>:task/...) without any additional HTTP
+  # calls or IAM permissions beyond what the ECS metadata filter already uses.
+  def get_ecs_tags(record)
+    if record.key?('ecs') and not record.fetch('ecs').nil?
+      ecs = record['ecs']
+      tags = Array.new
+      tags.push("cluster_name:" + ecs['ClusterName']) unless ecs['ClusterName'].nil?
+      tags.push("task_arn:" + ecs['TaskARN']) unless ecs['TaskARN'].nil?
+      tags.push("task_family:" + ecs['TaskDefinitionFamily']) unless ecs['TaskDefinitionFamily'].nil?
+      tags.push("task_revision:" + ecs['TaskDefinitionVersion'].to_s) unless ecs['TaskDefinitionVersion'].nil?
+      tags.push("container_name:" + ecs['ContainerName']) unless ecs['ContainerName'].nil?
+      tags.push("launch_type:" + ecs['LaunchType']) unless ecs['LaunchType'].nil?
+
+      # Extract aws_account from the TaskARN:
+      # Format: arn:aws:ecs:<region>:<account-id>:task/<cluster>/<task-id>
+      # account-id is at index 4 (0-based) when splitting on ':'
+      unless ecs['TaskARN'].nil?
+        arn_parts = ecs['TaskARN'].split(':')
+        if arn_parts.length >= 5 and not arn_parts[4].nil? and not arn_parts[4].empty?
+          tags.push("aws_account:" + arn_parts[4])
+        end
+      end
+
       return tags.join(",")
     end
     nil

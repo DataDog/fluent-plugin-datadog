@@ -413,4 +413,145 @@ class FluentDatadogTest < Test::Unit::TestCase
               'User-Agent'=>'Ruby'
           })
   end
+
+  # ---- ECS tagging tests ----
+
+  sub_test_case "get_ecs_tags" do
+    test "extracts all ECS tags including aws_account from TaskARN" do
+      plugin = create_valid_subject
+      record = {
+        "message" => "hello",
+        "ecs" => {
+          "ClusterName" => "my-cluster",
+          "TaskARN" => "arn:aws:ecs:us-east-1:123456789012:task/my-cluster/abcd1234",
+          "TaskDefinitionFamily" => "my-task-family",
+          "TaskDefinitionVersion" => "3",
+          "ContainerName" => "my-container",
+          "LaunchType" => "FARGATE"
+        }
+      }
+      tags = plugin.get_ecs_tags(record)
+      assert_true tags.include?("cluster_name:my-cluster")
+      assert_true tags.include?("task_arn:arn:aws:ecs:us-east-1:123456789012:task/my-cluster/abcd1234")
+      assert_true tags.include?("task_family:my-task-family")
+      assert_true tags.include?("task_revision:3")
+      assert_true tags.include?("container_name:my-container")
+      assert_true tags.include?("launch_type:FARGATE")
+      assert_true tags.include?("aws_account:123456789012")
+    end
+
+    test "extracts aws_account from TaskARN when other fields are absent" do
+      plugin = create_valid_subject
+      record = {
+        "ecs" => {
+          "TaskARN" => "arn:aws:ecs:eu-west-1:987654321098:task/prod-cluster/xyz"
+        }
+      }
+      tags = plugin.get_ecs_tags(record)
+      assert_true tags.include?("aws_account:987654321098")
+      assert_true tags.include?("task_arn:arn:aws:ecs:eu-west-1:987654321098:task/prod-cluster/xyz")
+    end
+
+    test "returns nil when ecs key is absent" do
+      plugin = create_valid_subject
+      record = {"message" => "no ecs metadata"}
+      assert_nil plugin.get_ecs_tags(record)
+    end
+
+    test "returns nil when ecs key is nil" do
+      plugin = create_valid_subject
+      record = {"ecs" => nil}
+      assert_nil plugin.get_ecs_tags(record)
+    end
+
+    test "does not add aws_account when TaskARN is nil" do
+      plugin = create_valid_subject
+      record = {
+        "ecs" => {
+          "ClusterName" => "my-cluster",
+          "TaskARN" => nil
+        }
+      }
+      tags = plugin.get_ecs_tags(record)
+      assert_false tags.include?("aws_account:")
+      assert_true tags.include?("cluster_name:my-cluster")
+    end
+
+    test "does not add aws_account when TaskARN is malformed (too short)" do
+      plugin = create_valid_subject
+      record = {
+        "ecs" => {
+          "TaskARN" => "arn:aws:ecs"
+        }
+      }
+      tags = plugin.get_ecs_tags(record)
+      assert_false tags.include?("aws_account:")
+    end
+
+    test "enrich_record appends ECS tags to ddtags when enable_ecs_tagging is true (default)" do
+      plugin = create_driver(%[
+        api_key foo
+      ]).instance
+      record = {
+        "message" => "hello",
+        "ecs" => {
+          "ClusterName" => "prod-cluster",
+          "TaskARN" => "arn:aws:ecs:us-west-2:111122223333:task/prod-cluster/abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_true result["ddtags"].include?("aws_account:111122223333")
+      assert_true result["ddtags"].include?("cluster_name:prod-cluster")
+    end
+
+    test "enrich_record does not append ECS tags when enable_ecs_tagging is false" do
+      plugin = create_driver(%[
+        api_key foo
+        enable_ecs_tagging false
+      ]).instance
+      record = {
+        "message" => "hello",
+        "ecs" => {
+          "ClusterName" => "prod-cluster",
+          "TaskARN" => "arn:aws:ecs:us-west-2:111122223333:task/prod-cluster/abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_nil result["ddtags"]
+    end
+
+    test "enrich_record appends ECS tags to existing ddtags" do
+      plugin = create_driver(%[
+        api_key foo
+        dd_tags env:prod
+      ]).instance
+      record = {
+        "message" => "hello",
+        "ecs" => {
+          "ClusterName" => "prod-cluster",
+          "TaskARN" => "arn:aws:ecs:us-east-1:123456789012:task/prod-cluster/abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_true result["ddtags"].start_with?("env:prod,")
+      assert_true result["ddtags"].include?("aws_account:123456789012")
+    end
+
+    test "delete_extracted_tag_attributes removes ecs key from record" do
+      plugin = create_driver(%[
+        api_key foo
+        delete_extracted_tag_attributes true
+      ]).instance
+      record = {
+        "message" => "hello",
+        "ecs" => {
+          "ClusterName" => "prod-cluster",
+          "TaskARN" => "arn:aws:ecs:us-east-1:123456789012:task/prod-cluster/abc123"
+        }
+      }
+      result = plugin.enrich_record(nil, 12345, record)
+      assert_nil result["ecs"]
+      assert_true result["ddtags"].include?("aws_account:123456789012")
+    end
+  end
 end
