@@ -96,8 +96,16 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
         @host = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{@site}"
       elsif @site == DD_DEFAULT_SITE
         @host = DD_DEFAULT_TCP_ENDPOINT
+      else
+        # TCP + non-default site: we cannot safely derive a TCP intake hostname
+        # from `site` (the HTTP-intake prefix is HTTP-only), and leaving @host
+        # nil would surface as a cryptic connect-time error. Fail fast at
+        # configure time with an actionable message.
+        raise Fluent::ConfigError,
+          "`host` is required when `use_http false` is combined with a non-default `site` " \
+          "(`site #{@site.inspect}`). Set `host` explicitly to your TCP intake (e.g. " \
+          "`intake.logs.#{@site}`)."
       end
-      # TCP + non-default site: @host stays nil/empty; an explicit `host` is required.
     end
 
     return if @dd_hostname

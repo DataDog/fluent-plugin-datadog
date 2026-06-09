@@ -135,6 +135,20 @@ class FluentDatadogTest < Test::Unit::TestCase
       assert_equal Fluent::DatadogOutput::DD_DEFAULT_TCP_ENDPOINT, plugin.host
     end
 
+    test "TCP transport with non-default site and no host raises ConfigError" do
+      # This is the genuinely new and risky case: `use_http false` + a non-default
+      # `site` + no explicit `host`. The HTTP-intake prefix cannot be used for TCP,
+      # and we want a clear error at configure time instead of a cryptic connect-time
+      # failure later.
+      assert_raise(Fluent::ConfigError) do
+        create_driver(%[
+          api_key foo
+          use_http false
+          site datadoghq.eu
+        ])
+      end
+    end
+
     test "gov site is accepted" do
       plugin = create_driver(%[
         api_key foo
