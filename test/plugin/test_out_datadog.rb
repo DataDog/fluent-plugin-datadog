@@ -82,6 +82,103 @@ class FluentDatadogTest < Test::Unit::TestCase
         end
       end
     end
+
+    test "default site yields the default HTTP host" do
+      plugin = create_driver(%[
+        api_key foo
+      ]).instance
+      assert_equal "datadoghq.com", plugin.site
+      assert_equal "http-intake.logs.datadoghq.com", plugin.host
+    end
+
+    test "EU site overrides the default HTTP host" do
+      plugin = create_driver(%[
+        api_key foo
+        site datadoghq.eu
+      ]).instance
+      assert_equal "datadoghq.eu", plugin.site
+      assert_equal "http-intake.logs.datadoghq.eu", plugin.host
+    end
+
+    test "explicit host overrides site-derived default" do
+      plugin = create_driver(%[
+        api_key foo
+        site datadoghq.eu
+        host my-custom-intake.example.com
+      ]).instance
+      assert_equal "datadoghq.eu", plugin.site
+      assert_equal "my-custom-intake.example.com", plugin.host
+    end
+
+    test "TCP transport with non-default site does not derive an HTTP host" do
+      # When use_http is false and a non-default site is set without an explicit
+      # host, @host must remain nil/empty so the caller is forced to set it
+      # explicitly. The old code would silently set an HTTP intake hostname
+      # and hand it to the TCP client.
+      plugin = create_driver(%[
+        api_key foo
+        use_http false
+        site datadoghq.eu
+        host intake.logs.datadoghq.eu
+      ]).instance
+      # The explicit host is used as-is; the HTTP-intake prefix must NOT appear.
+      assert_equal "intake.logs.datadoghq.eu", plugin.host
+      assert_false plugin.host.start_with?("http-intake.logs.")
+    end
+
+    test "TCP transport with no host and default site falls back to TCP endpoint" do
+      # Legacy behaviour: TCP + no host + default site => DD_DEFAULT_TCP_ENDPOINT
+      plugin = create_driver(%[
+        api_key foo
+        use_http false
+      ]).instance
+      assert_equal Fluent::DatadogOutput::DD_DEFAULT_TCP_ENDPOINT, plugin.host
+    end
+
+    test "TCP transport with non-default site and no host raises ConfigError" do
+      # This is the genuinely new and risky case: `use_http false` + a non-default
+      # `site` + no explicit `host`. The HTTP-intake prefix cannot be used for TCP,
+      # and we want a clear error at configure time instead of a cryptic connect-time
+      # failure later.
+      assert_raise(Fluent::ConfigError) do
+        create_driver(%[
+          api_key foo
+          use_http false
+          site datadoghq.eu
+        ])
+      end
+    end
+
+    test "gov site is accepted" do
+      plugin = create_driver(%[
+        api_key foo
+        site ddog-gov.com
+      ]).instance
+      assert_equal "ddog-gov.com", plugin.site
+      assert_equal "http-intake.logs.ddog-gov.com", plugin.host
+    end
+
+    test "unknown site is accepted (no validation, matches agent behavior)" do
+      # The Datadog Agent does not validate `site` (see pkg/config/utils/endpoints.go:
+      # GetMainEndpoint uses `prefix + strings.TrimSpace(c.GetString("site"))` directly).
+      # Mirror that behaviour here — typos surface at DNS resolution time, consistent
+      # with the rest of the Datadog product surface.
+      plugin = create_driver(%[
+        api_key foo
+        site future-region.datadoghq.com
+      ]).instance
+      assert_equal "future-region.datadoghq.com", plugin.site
+      assert_equal "http-intake.logs.future-region.datadoghq.com", plugin.host
+    end
+
+    test "valid subdomain site is accepted" do
+      plugin = create_driver(%[
+        api_key foo
+        site us3.datadoghq.com
+      ]).instance
+      assert_equal "us3.datadoghq.com", plugin.site
+      assert_equal "http-intake.logs.us3.datadoghq.com", plugin.host
+    end
   end
 
   sub_test_case "enrich_record" do

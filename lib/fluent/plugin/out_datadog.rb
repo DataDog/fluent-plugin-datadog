@@ -24,7 +24,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   DD_MAX_BATCH_SIZE = 5000000
   DD_TRUNCATION_SUFFIX = "...TRUNCATED..."
 
-  DD_DEFAULT_HTTP_ENDPOINT = "http-intake.logs.datadoghq.com"
+  DD_DEFAULT_SITE = "datadoghq.com"
+  DD_DEFAULT_HTTP_HOST_PREFIX = "http-intake.logs."
+  DD_DEFAULT_HTTP_ENDPOINT = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{DD_DEFAULT_SITE}".freeze
   DD_DEFAULT_TCP_ENDPOINT = "intake.logs.datadoghq.com"
 
   helpers :compat_parameters
@@ -45,8 +47,16 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   config_param :dd_hostname, :string, :default => nil
   config_param :delete_extracted_tag_attributes, :bool, :default => false
 
+  # Datadog site used to derive the default intake host. Valid values include:
+  # "datadoghq.com" (default), "datadoghq.eu", "us3.datadoghq.com",
+  # "us5.datadoghq.com", "ap1.datadoghq.com", "ddog-gov.com". Any value
+  # explicitly set for `host` takes precedence over the site-derived default.
+  config_param :site, :string, :default => DD_DEFAULT_SITE
+
   # Connection settings
-  config_param :host, :string, :default => DD_DEFAULT_HTTP_ENDPOINT
+  # `host` defaults to nil so we can tell whether the user explicitly set it.
+  # When nil, the host is derived from `site` during `configure`.
+  config_param :host, :string, :default => nil
   config_param :use_ssl, :bool, :default => true
   config_param :port, :integer, :default => 80
   config_param :ssl_port, :integer, :default => 443
@@ -77,11 +87,28 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   def configure(conf)
     compat_parameters_convert(conf, :buffer)
     super
-    return if @dd_hostname
 
-    if not @use_http and @host == DD_DEFAULT_HTTP_ENDPOINT
-      @host = DD_DEFAULT_TCP_ENDPOINT
+    # Derive default host from `site` only for HTTP transport.
+    # TCP users with a non-default site must set `host` explicitly;
+    # TCP users with no host and the default site get the legacy TCP endpoint.
+    if @host.nil? || @host.empty?
+      if @use_http
+        @host = "#{DD_DEFAULT_HTTP_HOST_PREFIX}#{@site}"
+      elsif @site == DD_DEFAULT_SITE
+        @host = DD_DEFAULT_TCP_ENDPOINT
+      else
+        # TCP + non-default site: we cannot safely derive a TCP intake hostname
+        # from `site` (the HTTP-intake prefix is HTTP-only), and leaving @host
+        # nil would surface as a cryptic connect-time error. Fail fast at
+        # configure time with an actionable message.
+        raise Fluent::ConfigError,
+          "`host` is required when `use_http false` is combined with a non-default `site` " \
+          "(`site #{@site.inspect}`). Set `host` explicitly to your TCP intake (e.g. " \
+          "`intake.logs.#{@site}`)."
+      end
     end
+
+    return if @dd_hostname
 
     # Set dd_hostname if not already set (can be set when using fluentd as aggregator)
     @dd_hostname = %x[hostname -f 2> /dev/null].strip
