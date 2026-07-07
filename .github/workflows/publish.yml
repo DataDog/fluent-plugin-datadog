@@ -1,0 +1,60 @@
+name: Publish gem
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push gem to RubyGems.org (false = dry run, true = publish)"
+        type: boolean
+        default: false
+        required: false
+
+concurrency: "rubygems"
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Build and publish gem to RubyGems.org
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.push && 'rubygems.org' || '' }}
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Verify gem version is not already published
+        run: |
+          GEM_VERSION=$(ruby -e "puts Gem::Specification.load('fluent-plugin-datadog.gemspec').version")
+          echo "GEM_VERSION=${GEM_VERSION}" >> "$GITHUB_ENV"
+
+          if gem search fluent-plugin-datadog --exact --remote --version "${GEM_VERSION}" | grep -q "(${GEM_VERSION})"; then
+            echo "::error::Version ${GEM_VERSION} is already published on RubyGems.org"
+            exit 1
+          fi
+          echo "Version ${GEM_VERSION} is ready to publish"
+
+      - name: Build gem (dry run)
+        if: ${{ !inputs.push }}
+        run: |
+          gem build fluent-plugin-datadog.gemspec
+          echo "::notice::Dry run complete. Gem built successfully: fluent-plugin-datadog-${GEM_VERSION}.gem"
+
+      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        if: ${{ inputs.push }}
+        id: octo-sts
+        with:
+          scope: DataDog/fluent-plugin-datadog
+          policy: self.publish
+      - name: Publish to RubyGems.org
+        if: ${{ inputs.push }}
+        uses: rubygems/release-gem@052cc82692552de3ef2b81fd670e41d13cba8092 # v1.4.0
+        with:
+          token: ${{ steps.octo-sts.outputs.token }}
