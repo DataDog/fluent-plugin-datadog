@@ -148,6 +148,12 @@ Configuration example:
 </filter>
 ```
 
+## Build
+
+To build the gem locally:
+
+- `rake build` to build the gem file
+
 ## Releasing
 
 This gem is published to RubyGems via a GitHub Actions [Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) workflow. No API keys or local credentials are needed.
