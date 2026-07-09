@@ -150,15 +150,23 @@ Configuration example:
 
 ## Build
 
-To build a new version of this plugin and push it to RubyGems:
+To build the gem locally:
 
-- Update the version in the .gemspec file accordingly
 - `rake build` to build the gem file
-- `rake release` to push the new gem to RubyGems
 
-**Note**: The latest command will fail without appropriate credentials configured. You can set those credentials by running the following command:
+## Releasing
 
-`curl -u <USERNAME> https://rubygems.org/api/v1/api_key.yaml > ~/.gem/credentials`, it will ask for your password.
+This gem is published to RubyGems via a GitHub Actions [Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) workflow. No API keys or local credentials are needed.
+
+To release a new version:
+
+1. Update the version in `lib/fluent/plugin/version.rb`
+2. Update `CHANGELOG.md`
+3. Merge to `master`
+4. Go to **Actions** > **Publish gem** > **Run workflow**
+5. Run with `push` unchecked first (dry run) to verify the build
+6. Run again with `push` checked to publish to RubyGems
+7. The `rubygems.org` environment gate will ask for approval before publishing
 
 ## Development Environment
 

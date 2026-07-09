@@ -1,0 +1,13 @@
+issuer: https://token.actions.githubusercontent.com
+
+subject: repo:DataDog/fluent-plugin-datadog:environment:rubygems.org
+
+claim_pattern:
+  event_name: workflow_dispatch
+  environment: rubygems.org
+  ref: refs/heads/master
+  repository: DataDog/fluent-plugin-datadog
+  job_workflow_ref: DataDog/fluent-plugin-datadog/\.github/workflows/publish\.yml@refs/heads/master
+
+permissions:
+  contents: write

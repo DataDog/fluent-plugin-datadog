@@ -1,3 +1,6 @@
+## Unreleased
+- Switch to GitHub Actions Trusted Publishing for gem releases (replaces manual API key publishing) [#89](https://github.com/DataDog/fluent-plugin-datadog/pull/89)
+
 ## 0.15.0
 - Provide a configuration option to delete kubernetes and docker attributes from the log after the relevant information has been extracted into tags [#78](https://github.com/DataDog/fluent-plugin-datadog/pull/78) by [@sambart19].
 - Fix launch.json and update readme [#76](https://github.com/DataDog/fluent-plugin-datadog/pull/76)
