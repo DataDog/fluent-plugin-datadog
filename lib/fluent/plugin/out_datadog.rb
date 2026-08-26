@@ -177,6 +177,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
       end
     rescue Exception => e
       log.error("Uncaught processing exception in datadog forwarder #{e.message}")
+      raise
     end
   end
 
@@ -328,6 +329,7 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
           retries += 1
           retry
         end
+        raise
       end
     end
 

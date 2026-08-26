@@ -1,4 +1,5 @@
 ## Unreleased
+- Fix: re-raise unhandled exceptions from `write(chunk)` (e.g. `Net::ReadTimeout`, `EOFError`) and from exhausted `send_retries` so Fluentd's own buffer retry can engage instead of silently dropping the chunk.
 - Switch to GitHub Actions Trusted Publishing for gem releases (replaces manual API key publishing) [#89](https://github.com/DataDog/fluent-plugin-datadog/pull/89)
 
 ## 0.15.0

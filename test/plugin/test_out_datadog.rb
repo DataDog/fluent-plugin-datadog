@@ -465,6 +465,30 @@ class FluentDatadogTest < Test::Unit::TestCase
     end
   end
 
+  sub_test_case "write(chunk) exception propagation" do
+    test "re-raises after logging so Fluentd's own buffer retry can engage" do
+      plugin = create_valid_subject
+      plugin.instance_variable_set(:@client, Object.new.tap { |c| c.define_singleton_method(:send_retries) { |*| raise Net::ReadTimeout } })
+      chunk = Object.new
+      chunk.define_singleton_method(:msgpack_each) { |&block| block.call(["dd1"]) }
+      assert_raise(Net::ReadTimeout) do
+        plugin.write(chunk)
+      end
+    end
+  end
+
+  sub_test_case "send_retries exhaustion" do
+    test "raises once max_retries is exhausted instead of silently returning" do
+      api_key = 'XXX'
+      stub_dd_request_with_return_code(api_key, 500, true)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send_retries(payload, 0, 1)
+      end
+    end
+  end
+
   def stub_dd_request_with_return_code(api_key, return_code, v2_routes = false)
     if v2_routes
         stub_dd_request_v2_routes(api_key).
