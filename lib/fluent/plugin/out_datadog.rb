@@ -175,8 +175,9 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
           process_tcp_event(record[0], @max_retries, @max_backoff, DD_MAX_BATCH_SIZE)
         end
       end
-    rescue Exception => e
-      log.error("Uncaught processing exception in datadog forwarder #{e.message}")
+    rescue StandardError => e
+      log.error("Processing exception in datadog forwarder #{e.class}: #{e.message}")
+      raise
     end
   end
 
@@ -328,6 +329,10 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
           retries += 1
           retry
         end
+        # Bounded retries exhausted: re-raise so the caller (and, ultimately,
+        # Fluentd core's buffer retry) is signalled instead of the failure being
+        # swallowed and the chunk silently dropped.
+        raise
       end
     end
 
@@ -344,6 +349,28 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
   class DatadogHTTPClient < DatadogClient
     require 'net/http'
     require 'net/http/persistent'
+
+    # Transient network exceptions that warrant a retry. This mirrors the set
+    # Ruby's Net::HTTP retries for idempotent requests (see
+    # Net::HTTP#max_retries=), which notably does NOT include POST, plus the
+    # connection-establishment errors net-http-persistent wraps in its own
+    # Error. Because our log POSTs are non-idempotent, Net::HTTP will not retry
+    # them for us, so we classify these ourselves and route them through
+    # send_retries (and, on exhaustion, up to Fluentd core).
+    RETRYABLE_NETWORK_EXCEPTIONS = [
+      Net::OpenTimeout,
+      Net::ReadTimeout,
+      EOFError,
+      IOError,
+      SocketError,
+      Errno::ECONNRESET,
+      Errno::ECONNREFUSED,
+      Errno::ECONNABORTED,
+      Errno::EPIPE,
+      Errno::ETIMEDOUT,
+      OpenSSL::SSL::SSLError,
+      Net::HTTP::Persistent::Error,
+    ].freeze
 
     def initialize(logger, use_ssl, no_ssl_validation, host, ssl_port, port, http_proxy, custom_headers, use_compression, api_key, force_v1_routes = false)
       @logger = logger
@@ -384,7 +411,13 @@ class Fluent::DatadogOutput < Fluent::Plugin::Output
     def send(payload)
       request = Net::HTTP::Post.new @uri.request_uri
       request.body = payload
-      response = @client.request @uri, request
+      begin
+        response = @client.request @uri, request
+      rescue *RETRYABLE_NETWORK_EXCEPTIONS => e
+        # Transient network failure before we ever saw a response. Net::HTTP
+        # won't retry a POST for us, so surface it as retryable.
+        raise RetryableError.new "Unable to send payload, transient network error: #{e.class}: #{e.message}"
+      end
       res_code = response.code.to_i
       # on a backend error or on an http 429, retry with backoff
       if res_code >= 500 || res_code == 429

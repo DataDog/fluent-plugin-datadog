@@ -465,6 +465,99 @@ class FluentDatadogTest < Test::Unit::TestCase
     end
   end
 
+  # v1 routes
+  sub_test_case "http transient network errors (v1 routes)" do
+    test "should raise RetryableError on Net::ReadTimeout" do
+      api_key = 'XXX'
+      stub_dd_request_with_error(api_key, Net::ReadTimeout)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send(payload)
+      end
+    end
+
+    test "should raise RetryableError on EOFError (end of file reached)" do
+      api_key = 'XXX'
+      stub_dd_request_with_error(api_key, EOFError)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send(payload)
+      end
+    end
+
+    test "should raise RetryableError on Errno::ECONNRESET" do
+      api_key = 'XXX'
+      stub_dd_request_with_error(api_key, Errno::ECONNRESET)
+      payload = '{}'
+      client = Fluent::DatadogOutput::DatadogHTTPClient.new Logger.new(STDOUT), false, false, "datadog.com", 443, 80, nil, {}, false, api_key, true
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send(payload)
+      end
+    end
+  end
+
+  sub_test_case "send_retries" do
+    # Logger stub that accepts Fluentd's warn(msg, hash) signature, which the
+    # stdlib Logger does not.
+    class NullLogger
+      def warn(*args, **kwargs); end
+      def error(*args, **kwargs); end
+      def info(*args, **kwargs); end
+      def debug(*args, **kwargs); end
+    end
+
+    def build_failing_client(error_to_raise)
+      Class.new(Fluent::DatadogOutput::DatadogClient) do
+        attr_reader :calls
+        define_method(:initialize) do
+          @logger = NullLogger.new
+          @calls = 0
+          @error_to_raise = error_to_raise
+        end
+        define_method(:send) do |_payload|
+          @calls += 1
+          raise @error_to_raise
+        end
+      end.new
+    end
+
+    test "re-raises RetryableError after exhausting bounded retries" do
+      client = build_failing_client(Fluent::DatadogOutput::RetryableError.new("boom"))
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        client.send_retries("payload", 1, 1)
+      end
+      # initial attempt + 1 retry
+      assert_equal 2, client.calls
+    end
+
+    test "does not swallow non-RetryableError exceptions" do
+      client = build_failing_client(ArgumentError.new("bad"))
+      assert_raise(ArgumentError) do
+        client.send_retries("payload", 1, 1)
+      end
+      # non-retryable: attempted once, no retries
+      assert_equal 1, client.calls
+    end
+  end
+
+  sub_test_case "write error propagation" do
+    test "write re-raises instead of swallowing errors" do
+      plugin = create_valid_subject
+      def plugin.process_http_events(*)
+        raise Fluent::DatadogOutput::RetryableError.new("boom")
+      end
+      fake_chunk = Object.new
+      def fake_chunk.msgpack_each
+        yield ["{}"]
+      end
+      assert_raise(Fluent::DatadogOutput::RetryableError) do
+        plugin.write(fake_chunk)
+      end
+    end
+  end
+
   def stub_dd_request_with_return_code(api_key, return_code, v2_routes = false)
     if v2_routes
         stub_dd_request_v2_routes(api_key).

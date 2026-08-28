@@ -1,5 +1,5 @@
 ## Unreleased
-- Switch to GitHub Actions Trusted Publishing for gem releases (replaces manual API key publishing) [#89](https://github.com/DataDog/fluent-plugin-datadog/pull/89)
+- Fix silent log loss on transient network errors: HTTP timeouts/resets (e.g. `Net::ReadTimeout`, `EOFError`, `Errno::ECONNRESET`) are now retried, and failed flushes are re-raised so Fluentd's buffer retry engages instead of dropping the chunk 
 
 ## 0.15.0
 - Provide a configuration option to delete kubernetes and docker attributes from the log after the relevant information has been extracted into tags [#78](https://github.com/DataDog/fluent-plugin-datadog/pull/78) by [@sambart19].
