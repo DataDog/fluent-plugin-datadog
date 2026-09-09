@@ -1,4 +1,4 @@
-## Unreleased
+## 0.15.1
 - Fix silent log loss on transient network errors: HTTP timeouts/resets (e.g. `Net::ReadTimeout`, `EOFError`, `Errno::ECONNRESET`) are now retried, and failed flushes are re-raised so Fluentd's buffer retry engages instead of dropping the chunk 
 
 ## 0.15.0
